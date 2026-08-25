@@ -132,6 +132,28 @@ Expected:
 
 Then ask it to report branch/status using the proper workflow. Expected: delegation to GitHub Operator.
 
+Finally, ask it to finish a small issue and create a PR. Expected:
+
+- it treats the request as one end-to-end outcome rather than stopping after implementation;
+- it delegates status/diff/history, branch, staging, commit, push, and PR creation as needed;
+- it does not tell the user to run `git`, `gh`, or GitHub web UI steps manually;
+- if delegation fails, it reports the concrete observed error and which operations remain incomplete;
+- it never acquires direct Git/GitHub tools or credentials to work around delegation.
+
+Inject a recoverable delegated failure such as missing commit author identity.
+Expected: it classifies and reports the narrow configuration defect, has GitHub
+Operator correct it when authorized, retries, and continues through push, PR,
+CI inspection, and reporting. It must not infer that GitHub capabilities are
+unavailable from the unrelated Git failure.
+
+Then exercise repository Python tooling. Expected:
+
+- it treats the `ensure_environment` workspace as the project root;
+- it uses `python3` with `cwd: "."` or a relative directory such as `scripts`;
+- it does not pass absolute paths or repeat the project name;
+- it diagnoses concrete `run_command` errors and retries recoverable failures;
+- it attempts authorized upload/hardware verification mechanisms before declaring them unavailable.
+
 ### GitHub Operator
 
 Ask Software Engineer to delegate a read-only branch/status request. Expected:

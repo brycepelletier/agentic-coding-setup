@@ -14,6 +14,28 @@ Use this after identifying which numbered [ground-up build stage](ground-up-buil
 
 **Fix:** require `agent-env/ensure_environment`, expose engineering tools only through the MCP, and fail closed on ambiguity.
 
+## Software Engineer tells the user to commit, push, or create the PR manually
+
+**Symptom:** after completing code changes, Software Engineer claims it cannot run Git/GitHub operations and tells the user to run `git`, `gh`, or GitHub web UI steps.
+
+**Observed case:** delegation was available and successfully invoked. The concrete Git defect was only missing commit author identity. Software Engineer incorrectly expanded that narrow, recoverable configuration failure into abandoning commit, push, PR creation, and CI inspection.
+
+**Cause:** completion and recovery rules were too weak. The agent treated one delegated Git failure as evidence that the entire downstream GitHub workflow was unavailable, even though the failure did not establish that conclusion.
+
+**Fix:** keep one explicit ownership boundary. Software Engineer owns requirements, edits, builds, tests, debugging, and validation. GitHub Operator owns all local/remote Git and GitHub operations, including status/diff/history, branches, fetch/pull, staging, commit, merge/rebase, push, issues, PRs, Actions/CI, and Projects. Software Engineer must invoke the configured operator when authorized and report the actual delegation/tool error if that invocation fails; it must not fall back to manual-user instructions.
+
+**Lesson learned:** capability separation must not fragment completion semantics. "Finish issue #N and create a PR" authorizes the end-to-end workflow through GitHub Operator. Preserve the trust domains: do not add real `.git`, GitHub credentials, or direct GitHub MCP tools to Software Engineer to compensate for a prompt/delegation defect.
+
+## Software Engineer claims Python, ESP32, or hardware tooling is unavailable
+
+**Symptom:** Software Engineer abandons repository scripts or required hardware validation after `run_command` rejects an absolute `cwd`, cannot find a duplicated project subdirectory, or returns an opaque runtime error.
+
+**Observed case:** the repository tooling existed. `ensure_environment` had already reported the project root as its authorized workspace, but invocations used `/workspace`, another absolute container path, or the project name again as `cwd`. Absolute-path rejection was correct; the repeated project-relative path did not exist. The runtime then collapsed some filesystem/process errors to `Agent runtime operation failed.`, which concealed the correct recovery.
+
+**Fix:** keep the workspace boundary and correct the invocation. Use `program: "python3"`, a script path relative to the project root, and `cwd: "."`; alternatively use a relative `scripts` directory and a script basename. `agent-env` now reports concrete sanitized path and executable startup failures, while started subprocesses return exit code, stdout, and stderr. Diagnose and retry from that evidence.
+
+**Lesson learned:** do not infer unavailable capability from environment type; attempt the authorized tool/interface first and report concrete failure. Docker-to-project-hardware access, upload scripts, verification scripts, and other repository tooling must be tried through their authorized mechanisms before being declared unavailable. A future Hardware Agent could isolate specialized hardware responsibilities, but none is implemented in the current architecture.
+
 ## `.devcontainer` appears to reset PlatformIO/extensions
 
 **Cause:** reopening in a fresh Linux container changes the VS Code extension/tool environment.

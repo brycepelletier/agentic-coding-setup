@@ -4,7 +4,7 @@ Read [Start Here](start-here.md) and [Concepts](concepts.md) first.
 
 ## Layer 1 — User experience
 
-The user chooses Software Engineer in VS Code. It handles coding and delegates repository operations.
+The user chooses Software Engineer in VS Code. It owns requirements, code edits, builds, tests, debugging, and validation, and it invokes GitHub Operator for the complete repository lifecycle and GitHub operations. A request such as "finish issue #N and create a PR" is one end-to-end outcome; the user does not have to separately request each branch, commit, push, or PR step.
 
 ## Layer 2 — Intelligence versus capability
 
@@ -31,6 +31,8 @@ VS Code calls `ensure_environment`; the host launcher starts Linux; the workspac
 
 Software Engineer delegates. GitHub Operator validates status and App authorization. An ephemeral remote-Git container sees real `.git`, GitHub network, and read-only PEM; it mints/uses/discards a token internally and scrubs output. See [GitHub MCP guide](build-guides/06-github-mcp.md).
 
+The ownership boundary is capability separation, not a workflow handoff to the user. Software Engineer must use its configured delegation path instead of telling the user to run `git`, `gh`, or GitHub web UI steps. If delegation fails, it reports the concrete delegation/tool error. Do not give Software Engineer GitHub credentials, direct GitHub MCP tools, or access to real `.git` as a workaround.
+
 ## Layer 6 — Trust-domain audit
 
 Now the comparison table has context:
@@ -50,4 +52,3 @@ MCP facades require exactly one local workspace from `roots/list`; the model can
 ## Security proof
 
 Python launched real Git in the engineering runtime, but Git returned code 128 / “not a git repository.” The executable existed; protected metadata did not. This proves a filesystem boundary rather than model obedience.
-

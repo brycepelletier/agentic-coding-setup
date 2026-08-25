@@ -23,6 +23,23 @@ run_command
 
 `.git`, `.ssh`, and `.gnupg` are rejected by workspace tools and omitted recursively from listings/search. `.git` is also physically masked from commands.
 
+`ensure_environment.workspace` is the authorized project root, not a parent of
+the project. `run_command` accepts workspace-relative paths only: use `cwd: "."`
+for a root command or a relative subdirectory such as `scripts`. Do not use an
+absolute host/container path or repeat the project name. Prefer `python3` in the
+Linux runtime unless the repository specifies another interpreter. For example:
+
+```json
+{"program":"python3","args":["verify_pr_validation.py"],"cwd":"."}
+{"program":"python3","args":["scripts/verify_pr_validation.py"],"cwd":"."}
+{"program":"python3","args":["verify_pr_validation.py"],"cwd":"scripts"}
+```
+
+The boundary remains fail-closed. Invalid paths and process-start failures
+return concrete sanitized reasons, while a program that starts returns its exit
+code and bounded output so script, import, dependency, permission, or network
+failures can be diagnosed without broadening filesystem access.
+
 ## `github` tools
 
 The facade combines:
