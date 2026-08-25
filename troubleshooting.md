@@ -36,6 +36,33 @@ Use this after identifying which numbered [ground-up build stage](ground-up-buil
 
 **Lesson learned:** do not infer unavailable capability from environment type; attempt the authorized tool/interface first and report concrete failure. Docker-to-project-hardware access, upload scripts, verification scripts, and other repository tooling must be tried through their authorized mechanisms before being declared unavailable. A future Hardware Agent could isolate specialized hardware responsibilities, but none is implemented in the current architecture.
 
+## Issue work remains local with no complete PR
+
+**Symptom:** several agents edit an issue branch, but only an early incidental
+commit exists; later work remains split across staged and untracked files, the
+branch has no upstream, no reviewable PR exists, issue metadata is missing, and
+the agent discusses a dry-run or hypothetical push as if delivery were complete.
+
+**Observed case:** `agent/ec-36-wifi-telemetry` was one commit ahead of `main`,
+but the Issue #36 implementation remained in fourteen staged tracked paths and
+thirteen untracked paths. Much of the apparent tracked diff was line-ending
+churn. No mandatory gate required a later agent to reconcile prior work,
+explicitly select commit paths, verify a real remote push, link the issue in a
+PR, or inspect CI. The canonical prompt had also been updated without copying it
+over the older live VS Code prompt.
+
+**Fix:** reconcile staged, unstaged, and untracked work before commit; classify
+and consolidate duplicates and formatting-only churn; stage explicit paths;
+review the staged patch; commit; perform a real authenticated push; compare the
+remote branch object ID with the local commit; create an issue-linked PR; and
+inspect CI to a terminal result. Deploy canonical prompt changes to the live
+`prompts` directory and restart/reload the agent host before retesting.
+
+**Release lesson:** follow repository policy. In Environment Controller,
+`RELEASE_CANDIDATE_TAG` is documented as a post-merge tag on the validated merge
+commit. Do not place it on the PR branch merely because the feature version was
+incremented.
+
 ## `.devcontainer` appears to reset PlatformIO/extensions
 
 **Cause:** reopening in a fresh Linux container changes the VS Code extension/tool environment.

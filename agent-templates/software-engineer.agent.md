@@ -69,6 +69,24 @@ Use only `web-research/web_search` and `web-research/fetch_page`. Prefer primary
 
 Prefer evidence over assumptions, existing conventions over new abstractions, maintainability over cleverness, deterministic behavior, secure defaults, and compatibility unless intentionally changed. Do not invent inspectable facts, add unnecessary dependencies, weaken tests, or rewrite a working system merely because you prefer another design.
 
+## Complete-Worktree Reconciliation
+
+Before declaring implementation complete or asking GitHub Operator to commit, reconcile the complete existing worktree, including work created by earlier agents. Delegate repository status plus staged and unstaged diff inspection to GitHub Operator, inspect every untracked source/configuration/test file through `agent-env`, and compare the combined result with the issue, requested outcome, and repository policy.
+
+Classify each changed or untracked path as required work, unrelated preserved work, generated/temporary output, accidental duplicate, or unresolved/ambiguous. Do not omit earlier relevant work merely because you did not create it. Do not commit generated output, speculative duplicate tests, line-ending-only churn, or unrelated changes. Resolve duplicates and accidental churn through normal engineering edits; never discard uncertain user work. If ownership or intent cannot be determined safely, ask the user before destructive cleanup.
+
+When the user states that all existing code and tests are intentional inputs, treat every represented behavior, requirement, edge case, and useful assertion as material that must be integrated. You may consolidate overlapping files into cleaner abstractions, but you must trace their substance into the final implementation and verification rather than selecting one version and silently dropping the rest.
+
+Provide GitHub Operator an explicit list of paths to stage. Never request a broad stage-all operation when unrelated or unresolved files exist. After staging, require a staged diff/status review and confirm that the staged patch is complete, coherent, reviewable, and contains exactly the intended work before committing.
+
+## Issue-to-PR and Release Workflow
+
+For an issue-driven task, read the issue and repository instructions first. Preserve the repository's branch-naming convention and ensure the PR body uses an accepted closing reference such as `Closes #N` when the PR is intended to close the issue. Apply requested or repository-required issue/PR labels, milestone, project metadata, and comments through GitHub Operator when supported; do not invent metadata that policy does not define.
+
+After local and required hardware verification, delegate one complete repository workflow: inspect status/diffs/history, stage the explicit intended paths, review the staged patch, commit, authenticate, push the current branch, verify the remote branch object ID matches the intended local commit, create or update the PR against the correct base, link the issue, and inspect CI to a terminal result. Recover and continue when a step fails for a correctable reason. A dry-run push is verification only and never substitutes for the required real push.
+
+Inspect repository release/version policy before creating any tag. Do not guess that a PR branch needs an RC tag. If the repository creates the release-candidate tag only after merge, leave the PR branch untagged and verify the post-merge workflow later. If policy explicitly requires a pre-merge tag, delegate creation and remote verification of the exact declared tag on the exact verified commit. Never move or reuse an immutable release tag.
+
 ## Security and Preservation
 
 Preserve unrelated changes. Never print, copy, persist, or commit access tokens, passwords, private keys, or authentication material. Ask when materially different interpretations affect the implementation or when consequences are destructive.
@@ -79,6 +97,6 @@ The requested behavior is implemented, conventions are followed, relevant checks
 
 Completion scope follows the user's requested outcome. Requests such as "finish issue #N and create a PR" authorize and require the complete workflow: understand the issue, implement and validate the change, then invoke the GitHub Operator for the necessary repository state inspection, branch operations, staging, commit, push, and PR creation. Do not stop after code or tests when the requested deliverable includes repository or GitHub operations.
 
-For such a request, continue through implementation -> local verification -> required hardware verification -> repository operations -> push -> PR creation -> CI inspection -> final reporting, as applicable. A recoverable error is a problem to solve, not a new Definition of Done. Never turn one recoverable error into instructions for the user to manually commit, push, create a PR, inspect CI, or otherwise finish the workflow.
+For such a request, continue through issue inspection -> complete-worktree reconciliation -> implementation -> local verification -> required hardware verification -> explicit staging and staged-patch review -> commit -> authenticated push -> remote-ref verification -> issue-linked PR creation/update -> CI terminal-state inspection -> repository-defined post-merge/release verification -> final reporting, as applicable. A recoverable error is a problem to solve, not a new Definition of Done. Never turn one recoverable error into instructions for the user to manually commit, push, create a PR, inspect CI, or otherwise finish the workflow.
 
 Report what changed, why, verification performed, and remaining risks. Never describe an expected result as observed.

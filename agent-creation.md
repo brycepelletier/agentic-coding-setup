@@ -139,6 +139,10 @@ Finally, ask it to finish a small issue and create a PR. Expected:
 - it does not tell the user to run `git`, `gh`, or GitHub web UI steps manually;
 - if delegation fails, it reports the concrete observed error and which operations remain incomplete;
 - it never acquires direct Git/GitHub tools or credentials to work around delegation.
+- it reconciles staged, unstaged, and untracked work from all prior agents before selecting explicit commit paths;
+- it reviews the staged patch before commit, performs a real push, and verifies the remote branch object ID;
+- it creates an issue-linked PR with the correct base/head and inspects CI to a terminal result;
+- it follows the repository's declared release/tag lifecycle instead of assuming an RC tag belongs on the PR branch.
 
 Inject a recoverable delegated failure such as missing commit author identity.
 Expected: it classifies and reports the narrow configuration defect, has GitHub
@@ -177,3 +181,10 @@ With unrelated uncommitted work present, request an operation affecting another 
 4. Change the smallest role/tool surface.
 5. Retest in a fresh session so cached context does not hide the result.
 6. Record superseded behavior in [history.md](history.md), not in the active prompt.
+
+Updating the repository template alone does not update an installed agent. After
+reviewing a template change, copy both current agent files into
+`%APPDATA%\Code\User\prompts`, restart/reload the agent host as required, and
+compare the installed files with the canonical templates before acceptance
+testing. A successful documentation commit is not evidence that VS Code loaded
+the new prompt.

@@ -44,6 +44,6 @@ Each guide explains purpose, prerequisites, steps, expected results, and a stop/
 - [Troubleshooting](troubleshooting.md)
 - [History and superseded experiments](history.md)
 - [Evidence](evidence.md)
+- [Issue #36 agent recovery instruction](instructions/environment-controller-issue-36-recovery.md)
 
 Labels: **current/verified** is live now; **historical/superseded** was replaced; **planned** is not implemented. Never copy private-key contents into documentation or source control.
-
