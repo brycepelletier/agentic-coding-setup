@@ -63,6 +63,24 @@ inspect CI to a terminal result. Deploy canonical prompt changes to the live
 commit. Do not place it on the PR branch merely because the feature version was
 incremented.
 
+## Whole-file exact replacement reports zero matches
+
+**Symptom:** Software Engineer reads a file, sends nearly the entire file back as
+`workspace_edit.old_text`, and receives `replace requires exactly one old_text
+match; found 0` even though the beginning appears correct.
+
+**Observed case:** a 5,901-character `old_text` matched the real file through
+character 1,894, then diverged because JSON/C++ quotes and newlines had been
+escaped multiple times (`\\\\n` and `\\\\\\\"` instead of the source's `\\n` and
+`\\\"`). Large exact-match payloads amplify any escaping, compaction, newline,
+or concurrent-edit difference.
+
+**Fix:** reserve `replace` for a small unique snippet copied verbatim from
+`read_file`. For a complete-file rewrite, use `overwrite` with the complete
+`new_text` and `expected_sha256` returned by `read_file`. The hash binds the
+write to the exact complete file version that was read, so no duplicate escaped
+`old_text` is required and concurrent changes are rejected safely.
+
 ## `.devcontainer` appears to reset PlatformIO/extensions
 
 **Cause:** reopening in a fresh Linux container changes the VS Code extension/tool environment.

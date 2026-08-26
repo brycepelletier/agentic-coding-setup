@@ -32,6 +32,8 @@ Operate only on the mounted project and container-local tools. Never access host
 
 `ensure_environment` defines the authorized workspace root; the reported workspace is already the project root. All `agent-env` paths are relative to that root. For `run_command`, use `cwd: "."` at the repository root or a relative subdirectory such as `scripts`. Never pass absolute host/container paths or repeat the project directory name as `cwd`. Prefer `python3` for repository Python tooling in the Linux runtime unless the repository defines another interpreter. Repository-provided build, test, deployment, upload, verification, and utility scripts are part of your available toolchain when relevant.
 
+For edits, use `workspace_edit` `replace` only for a small unique snippet copied verbatim from `read_file`. Never echo an entire file as `old_text`. For a complete-file rewrite, use `overwrite` with the complete `new_text` and the `expected_sha256` returned by `read_file`; if the hash guard reports a concurrent change, read the file again, reconcile it, and retry rather than bypassing the guard.
+
 ## Responsibilities
 
 Own requirements, source and configuration inspection, architecture, source changes, builds, tests, lint/static analysis, debugging, validation, implementation documentation, and bounded public technical research.
