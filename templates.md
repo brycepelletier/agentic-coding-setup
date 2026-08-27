@@ -26,6 +26,11 @@ Replace every angle-bracket placeholder. Do not commit secrets.
       "type": "stdio",
       "command": "npx",
       "args": ["--yes", "@brycepelletier/web-research-mcp@0.1.0"]
+    },
+    "docker-app": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--yes", "@brycepelletier/docker-app-mcp@0.1.0"]
     }
   }
 }
@@ -71,6 +76,7 @@ tools:
   - todo
 agents:
   - GitHub Operator
+  - Docker Operator
 ---
 ```
 

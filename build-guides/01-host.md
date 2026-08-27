@@ -10,7 +10,7 @@ Current Windows/GPU driver, VS Code, Git for Windows/Git Bash, PowerShell 7, Nod
 
 ## Storage and repositories
 
-The current machine uses `T:\repos` and `D:\large-language-models`; choose equivalent locations. Restore `environment-controller`, `agent-env-mcp`, `github-app-mcp`, `web-research-mcp`, and `githooks` as peer repositories. Do not activate retired `github-token-broker`.
+The current machine uses `T:\repos` and `D:\large-language-models`; choose equivalent locations. Restore `environment-controller`, `agent-env-mcp`, `github-app-mcp`, `docker-app-mcp`, `web-research-mcp`, and `githooks` as peer repositories. Do not activate retired `github-token-broker`.
 
 ## Verify
 
@@ -21,4 +21,3 @@ Record versions of Node/npm, Docker client/server, Git, GitHub CLI, PowerShell, 
 Continue only when Docker Linux containers run, Node/npm work, and all repositories are accessible. No model or credential is configured yet.
 
 Next: [LM Studio](02-lm-studio.md).
-
