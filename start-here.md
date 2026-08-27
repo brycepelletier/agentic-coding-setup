@@ -2,10 +2,11 @@
 
 ## The short version
 
-We are building a local AI-assisted software team on one Windows computer. LM Studio runs the language model. VS Code is the user interface. Two agents use the same intelligence but receive different jobs and tools:
+We are building a local AI-assisted software team on one Windows computer. LM Studio runs the language model. VS Code is the user interface. Three agents use the same intelligence but receive different jobs and tools:
 
 - **Software Engineer** reads and changes code, then builds and tests it.
 - **GitHub Operator** manages Git history, branches, commits, GitHub, and CI.
+- **Docker Operator** manages only the Dockerized GitHub Actions runner.
 
 Small MCP programs expose only the operations each role needs. Docker containers keep project execution away from the Windows host and sensitive credentials.
 
@@ -47,7 +48,7 @@ An all-powerful agent is easier to configure but harder to trust. A coding mista
 - **GitHub App:** selected-repository, short-lived authorization.
 - **Environment Controller:** real application, policy, builds, tests, and CI.
 
-Current components are `agent-env-mcp`, `github-app-mcp`, and `web-research-mcp`. Repository-owned `.devcontainer`, the HTTP token broker, and standalone DuckDuckGo agent are superseded.
+Current components are `agent-env-mcp`, `github-app-mcp`, `docker-app-mcp`, and `web-research-mcp`. Repository-owned `.devcontainer`, the old standalone HTTP token broker, and standalone DuckDuckGo agent are superseded.
 
 ## Success at the end
 
@@ -59,4 +60,3 @@ Current components are `agent-env-mcp`, `github-app-mcp`, and `web-research-mcp`
 - CI independently validates the work.
 
 Next: [Concepts and glossary](concepts.md).
-

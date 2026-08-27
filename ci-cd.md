@@ -6,7 +6,7 @@ For the beginner build sequence, start with [Stage 10 — Restore CI/CD](build-g
 
 ### `Firmware PR validation` (`.github/workflows/firmware.yml`)
 
-Triggers on pull requests and manual `workflow_dispatch`. It uses a self-hosted Windows x64 runner labeled `environment-controller-ci`, validates Docker availability, and runs project checks inside the pinned build-runner container. It collects physical and mock release packages and uploads them as a commit-specific artifact.
+Triggers on pull requests and manual `workflow_dispatch`. It uses an ephemeral self-hosted Linux x64 runner container labeled `environment-controller-ci`. The pinned runner image contains the CI toolchain, so project checks run directly in the Actions workspace. It collects physical and mock release packages and uploads them as a commit-specific artifact.
 
 ### `Post-merge delivery` (`.github/workflows/post-merge.yml`)
 
@@ -16,17 +16,20 @@ Triggers on pushes to the delivery branch (currently governed by the workflow). 
 
 ```text
 GitHub Actions job
-  -> self-hosted Windows runner
-  -> Docker Engine
-  -> pinned Linux build-runner image
+  -> queued correlated workflow run
+  -> Docker Operator starts ephemeral Linux x64 runner
+  -> non-root se-agent Actions workspace
   -> lint/tests/PlatformIO builds/package verification
 ```
 
-The runner wrapper is started visibly through `.github/ci/runner-hooks/run-visible.sh`, with the workflow URL shown first. It remains open until terminal workflow state and is stopped with Ctrl+C so the runner releases its session cleanly.
+GitHub Operator issues a single-use opaque registration capability. Docker
+Operator consumes it without exposing the token and returns a
+`runner_ready_handle`. GitHub Operator independently verifies the runner is
+online and correctly labeled before observing the workflow.
 
 ## Version and immutability model
 
-`version.env` is the version source for firmware target, release-candidate tag, production tag, and build-runner version. Build-runner Docker tags, release tags, and release assets are immutable: reuse with different contents fails.
+`version.env` is the version source for firmware target, release-candidate tag, and production tag. Release tags and assets are immutable: reuse with different contents fails. Runner/toolchain versions are pinned in `cots-versions.env` and the runner Dockerfile.
 
 The build ID is based on Git revision plus `-dirty` for uncommitted changes. CI records deterministic results independently of any agent narrative.
 
@@ -36,4 +39,8 @@ The current post-merge flow creates a release candidate, not the production tag.
 
 ## Agent integration
 
-GitHub Operator can inspect/trigger Actions through the official MCP `actions` toolset. Project policy requires the existing CI/CD workflow to be the authoritative final verification path when applicable. An agent must not claim workflow success without observing it.
+GitHub Operator can inspect/trigger Actions and authorize registration. Docker
+Operator owns only runner infrastructure. Software Engineer coordinates the
+typed handoff. Project policy requires the workflow to be authoritative; no
+agent may claim runner readiness or workflow success without its owning tool's
+observed evidence.

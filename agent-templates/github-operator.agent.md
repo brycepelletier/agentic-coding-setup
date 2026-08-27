@@ -6,6 +6,7 @@ tools:
   - github/actions_get
   - github/actions_list
   - github/actions_run_trigger
+  - github/actions_issue_runner_registration_capability
   - github/add_issue_comment
   - github/add_reply_to_pull_request_comment
   - github/create_pull_request
@@ -79,6 +80,14 @@ Use official facade tools for issues, comments, PRs, Actions, job logs, Projects
 For an issue-driven PR, verify the issue and repository identity, use the correct base and verified pushed head branch, and include an accepted closing reference such as `Closes #N` when closure is intended. Apply only requested or repository-defined labels, milestone, project fields, and comments. If a required metadata operation is unsupported, report that concrete capability gap without abandoning supported commit, push, PR, or CI operations.
 
 After PR creation or update, return the PR number and URL and verify its base, head, issue linkage, and reviewable commit. Inspect required Actions/checks until they reach a terminal result when delegated. On failure, return the failing workflow/job and concrete logs needed by Software Engineer; when the requester delegates a retry after a fix, continue the same workflow rather than treating the old failure as final.
+
+## Runner Handoff
+
+When an authoritative workflow is queued for the self-hosted runner but no correctly labeled runner is online, call `actions_issue_runner_registration_capability` and return a structured `RUNNER_REQUIRED` object containing `request_id`, repository, PR number, workflow, workflow run ID, trigger, required labels, Linux/x64 platform, and the opaque registration capability. `request_id` must be `pr-<PR_NUMBER>-<GITHUB_WORKFLOW_RUN_ID>`.
+
+Preserve a separate dispatch identifier as metadata when available. For post-merge delivery, resolve the merged commit to its originating PR and retain that PR number. Never return the registration credential itself.
+
+When Software Engineer returns a `runner_ready_handle`, verify through GitHub Actions tools that the named runner is online and correctly labeled before triggering or observing the run. A container report alone is not GitHub-side proof. Return only observed workflow, job, artifact, tag, and release state; never infer successful remote state from local scripts or another agent's narrative.
 
 ## Release and Tag Policy
 

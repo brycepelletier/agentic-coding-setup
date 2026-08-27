@@ -4,7 +4,7 @@ Build in order. Every stage must work independently before the next layer is add
 
 ```text
 Host -> Model -> VS Code -> Engineering MCP -> GitHub App
-     -> GitHub MCP -> Research MCP -> Agents -> Project -> CI -> audit
+     -> GitHub MCP -> Research MCP -> Docker MCP -> Agents -> Project -> CI -> audit
 ```
 
 | Stage | Requires | Produces | Stop/go proof |
@@ -16,6 +16,7 @@ Host -> Model -> VS Code -> Engineering MCP -> GitHub App
 | 5 | GitHub repo | App IDs and PEM | Auth chain succeeds |
 | 6 | App/Docker | Git/GitHub tools | Auth dry run, no mutation |
 | 7 | Node/network | Research tools | Policy tests pass |
+| 7A | Docker/Node | Bounded runner tools | Image/policy tests pass |
 | 8 | MCPs | Role agents | Delegation/boundary tests |
 | 9 | Environment repo | Project policy/integration | Project builds correctly |
 | 10 | Runner/Docker | Independent CI/RC | Green workflow/artifacts |
@@ -32,8 +33,8 @@ For each stage record UTC time, machine/OS, versions, configuration locations, c
 5. [GitHub App](build-guides/05-github-app.md)
 6. [github-app MCP](build-guides/06-github-mcp.md)
 7. [web-research](build-guides/07-web-research.md)
+7A. [docker-app MCP](build-guides/07a-docker-app.md)
 8. [Agents](build-guides/08-agents.md)
 9. [Project](build-guides/09-project.md)
 10. [CI/CD](build-guides/10-ci-cd.md)
 11. [Complete verification](verification.md)
-

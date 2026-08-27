@@ -19,8 +19,9 @@
 
 ## Agent definitions
 
-- [ ] Software Engineer appears with only `agent-env/*`, two `web-research` tools, todo, and GitHub Operator delegation.
+- [ ] Software Engineer appears with only `agent-env/*`, two `web-research` tools, todo, and GitHub/Docker Operator delegation.
 - [ ] GitHub Operator is not user-invocable and exposes only the explicitly listed Git/GitHub tools.
+- [ ] Docker Operator is not user-invocable and exposes only `docker-app/*`.
 - [ ] Software Engineer delegates branch/status rather than attempting Git directly.
 - [ ] GitHub Operator refuses source editing and runs its independent repository gate.
 - [ ] The legacy standalone Web Search agent is not active in the current setup.
@@ -42,6 +43,16 @@
 - [ ] `fetch_page` supports `find` and bounded navigation links.
 - [ ] Loopback/private and credential-bearing URLs are rejected.
 - [ ] Oversized result limits are rejected by schema.
+
+## Docker boundary
+
+- [ ] Version-pinned `npx` discovers exactly the seven documented Docker tools.
+- [ ] No arbitrary Docker command, shell, host path, or Docker socket tool exists.
+- [ ] Runner image builds only from the authorized Environment Controller root.
+- [ ] Image runs as `se-agent` with Actions runner and required CI toolchain.
+- [ ] Mutation refuses resources without matching managed/request labels.
+- [ ] Registration capability is opaque, expiring, and single use.
+- [ ] `runner_ready_handle` does not claim GitHub-side workflow success.
 
 ## Environment Controller
 

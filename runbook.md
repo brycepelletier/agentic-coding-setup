@@ -20,6 +20,7 @@ Clone or copy these as peers; drive letters may differ:
 environment-controller
 agent-env-mcp
 github-app-mcp
+docker-app-mcp
 web-research-mcp
 githooks
 ```
@@ -55,7 +56,7 @@ First complete [Stage 4 — Engineering runtime](build-guides/04-agent-env.md). 
 
 ## 6. Configure MCPs
 
-Install and test the MCPs separately in this order: [agent-env](build-guides/04-agent-env.md), [github-app](build-guides/06-github-mcp.md), then [web-research](build-guides/07-web-research.md). Do not add all three and debug them as one unit.
+Install and test the MCPs separately in this order: [agent-env](build-guides/04-agent-env.md), [github-app](build-guides/06-github-mcp.md), [web-research](build-guides/07-web-research.md), then [docker-app](build-guides/07a-docker-app.md). Do not add all four and debug them as one unit.
 
 Create `%APPDATA%\Code\User\mcp.json` from [the template](templates.md#vs-code-mcp-configuration). Use the current pinned package versions. If developing locally, run `npm run link` in each package and temporarily set `command` to its linked binary.
 
@@ -63,7 +64,7 @@ Create `%APPDATA%\Code\User\mcp.json` from [the template](templates.md#vs-code-m
 
 Detailed guides: [Stage 8 — Agents](build-guides/08-agents.md) and [Stage 9 — Project](build-guides/09-project.md).
 
-Follow [Agent Creation and Architectural Intent](agent-creation.md). Install the current [Software Engineer](agent-templates/software-engineer.agent.md) and [GitHub Operator](agent-templates/github-operator.agent.md) definitions under `%APPDATA%\Code\User\prompts`. Do not install the legacy Web Search agent unless deliberately restoring the superseded architecture and updating its tool names. Verify exact frontmatter tool inventories and run all agent acceptance tests. Restore the project's `AGENTS.md`; update legacy `projectEnvironment` wording to `agent-env` only after confirming the live tool name expected by the client.
+Follow [Agent Creation and Architectural Intent](agent-creation.md). Install the current [Software Engineer](agent-templates/software-engineer.agent.md), [GitHub Operator](agent-templates/github-operator.agent.md), and [Docker Operator](agent-templates/docker-operator.agent.md) definitions under `%APPDATA%\Code\User\prompts`. Do not install the legacy Web Search agent unless deliberately restoring the superseded architecture and updating its tool names. Verify exact frontmatter tool inventories and run all agent acceptance tests. Restore the project's `AGENTS.md`; update legacy `projectEnvironment` wording to `agent-env` only after confirming the live tool name expected by the client.
 
 ## 8. Validate trust boundaries
 
@@ -73,11 +74,11 @@ Run every check in [verification.md](verification.md). Do not proceed to autonom
 
 Detailed guide: [Stage 10 — CI/CD](build-guides/10-ci-cd.md).
 
-1. Register the self-hosted runner with labels `self-hosted`, `windows`, `x64`, `environment-controller-ci`.
-2. Install/start Docker Desktop.
-3. Use the visible runner wrapper; do not install it as a hidden service unless explicitly changing policy.
-4. Run the PR workflow manually once.
-5. Verify release-package artifacts, immutable build-runner behavior, and post-merge RC flow.
+1. Install/start Docker Desktop with Linux containers.
+2. Have GitHub Operator identify a queued workflow and issue a correlated opaque registration capability.
+3. Have Docker Operator build and start the ephemeral Linux x64 runner.
+4. Require GitHub Operator to verify `self-hosted`, `linux`, `x64`, and `environment-controller-ci` labels.
+5. Run the PR workflow and verify release-package artifacts and post-merge RC flow.
 
 ## 10. Acceptance task
 

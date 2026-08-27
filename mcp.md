@@ -9,6 +9,7 @@ If MCP is new to you, first read [Concepts](concepts.md#mcp). For installation o
 | `agent-env` | `@brycepelletier/agent-env-mcp` | 0.4.1 | Hardened reusable engineering runtime |
 | `github` | `@brycepelletier/github-app-mcp` | 0.3.0 | Bounded Git plus official GitHub MCP facade |
 | `web-research` | `@brycepelletier/web-research-mcp` | 0.1.0 | Credential-free bounded technical research |
+| `docker-app` | `@brycepelletier/docker-app-mcp` | 0.1.0 | Bounded Dockerized Actions runner lifecycle |
 
 ## `agent-env` tools
 
@@ -59,6 +60,26 @@ Remote auth mints a repository-restricted installation token inside the ephemera
 ## `web-research`
 
 Search uses DuckDuckGo first and Bing RSS fallback. Challenges, transport failures, and empty parsing trigger fallback; dual failure produces one sanitized error. `fetch_page` is independent, blocks loopback/private targets and credential-bearing URLs, limits downloads, and returns bounded content/navigation/find results.
+
+## `docker-app` tools
+
+Install the published package through the version-pinned `npx` entry in the
+[VS Code MCP template](templates.md#vs-code-mcp-configuration). Use
+`npm run link` plus the `docker-app-mcp` binary only during local package
+development. The complete isolated installation and verification path is
+[Stage 7A — Docker Runner Capability](build-guides/07a-docker-app.md).
+
+```text
+docker_status
+list_managed_resources
+build_runner_image
+start_runner
+runner_status
+runner_logs
+stop_runner
+```
+
+There is no arbitrary Docker CLI or shell tool. Mutable runner resources require Docker Operator ownership labels. `start_runner` consumes a one-time opaque registration capability issued by `github-app-mcp`; registration tokens never enter agent-visible output.
 
 ## Local package development
 

@@ -13,14 +13,13 @@ LM Studio/Qwen supplies intelligence. Agent prompts assign jobs. MCP tools expos
 ## Layer 3 — Roles and infrastructure
 
 ```text
-Software Engineer                    GitHub Operator
-       |                                    |
-agent-env-mcp                         github-app-mcp
-       |                         +----------+----------+
-Linux engineering runtime        bounded Git       official GitHub MCP
-source visible                    real .git         GitHub API
-.git masked                       local:no network  App authentication
-no credentials/socket            remote:App auth   fixed toolsets
+Software Engineer              GitHub Operator             Docker Operator
+       |                              |                           |
+agent-env-mcp                   github-app-mcp               docker-app-mcp
+       |                    +---------+---------+          structured runner tools
+Linux engineering runtime   bounded Git   official API    managed containers only
+.git masked                  real .git     App auth        no arbitrary CLI/shell
+no credentials/socket       runner authorization          label-gated mutation
 ```
 
 ## Layer 4 — Follow a build
@@ -33,7 +32,16 @@ Software Engineer delegates. GitHub Operator validates status and App authorizat
 
 The ownership boundary is capability separation, not a workflow handoff to the user. Software Engineer must use its configured delegation path instead of telling the user to run `git`, `gh`, or GitHub web UI steps. If delegation fails, it reports the concrete delegation/tool error. Do not give Software Engineer GitHub credentials, direct GitHub MCP tools, or access to real `.git` as a workaround.
 
-## Layer 6 — Trust-domain audit
+## Layer 6 — Follow a CI runner request
+
+GitHub Operator identifies the authoritative queued workflow and issues a
+single-use opaque registration capability. Software Engineer forwards the
+complete `RUNNER_REQUIRED` object to Docker Operator. Docker Operator builds
+and starts the managed Linux runner, then returns `runner_ready_handle`.
+GitHub Operator independently verifies the runner and workflow state. See the
+[Docker MCP guide](build-guides/07a-docker-app.md).
+
+## Layer 7 — Trust-domain audit
 
 Now the comparison table has context:
 
@@ -43,9 +51,10 @@ Now the comparison table has context:
 | Local Git runtime | Local history | Yes | Yes | No | No |
 | Remote Git runtime | Fetch/pull/push | Yes | Yes | GitHub | Internal/temporary |
 | Official GitHub MCP | Issues/PRs/CI/Projects | N/A | N/A | GitHub | Internal/temporary |
+| Docker Operator | Managed runner lifecycle | Runner build context | N/A | Docker/GitHub runner | Opaque capability only |
 | Trusted host launcher | Create controlled containers | Selected workspace | Infrastructure | Yes | Configured where required |
 
-## Layer 7 — Discovery and cleanup
+## Layer 8 — Discovery and cleanup
 
 MCP facades require exactly one local workspace from `roots/list`; the model cannot choose arbitrary host paths. Engineering Compose shuts down on close/signals/errors, with a 15-minute idle fallback. Git containers are ephemeral. No model-controlled container gets the Docker socket.
 
