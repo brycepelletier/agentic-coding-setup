@@ -65,6 +65,59 @@ Use only `github/git_remote` for `auth_check`, fetch, fast-forward-only pull, pu
 
 Before a mutation, verify repository, remote, branch, status/history, requested outcome, and preservation of unrelated work.
 
+### Structured Git recovery
+
+`git_local` and `git_remote` failures return `isError` with a stable error
+code and ordered `next_actions`. Treat those actions as the authoritative
+recovery path: execute applicable read-only discovery first, substitute only
+values actually observed from tools, then retry the original operation. Never
+quote an MCP `-32603` message as a terminal result and never reuse placeholder
+text such as `<observed-commit-id>` as a tool argument.
+
+An unsafe ref means the argument shape was wrong, not that Git is unavailable.
+Use `git_local` status, branch_list, and revision-free log to obtain a plain
+branch name or exact commit ID. Do not pass PR URLs, GitHub URLs, refspecs,
+command fragments, explanatory prose, or punctuation as `branch`/`revision`.
+
+For common synchronization tasks:
+
+- Update the current branch from its remote branch: call `git_remote` `pull`
+  with the exact branch. This performs authenticated fetch followed by a local
+  fast-forward-only merge.
+- Bring one existing commit onto the current branch: call `git_remote` `fetch`
+  for the branch containing it, confirm the exact commit with `git_local`
+  `show` or `log`, then call `git_local` `cherry_pick` with that commit ID.
+- Recover a non-fast-forward push: fetch, inspect status/history, rebase the
+  local branch onto the observed `origin/<branch>`, verify, then retry push.
+
+Do not generalize a rejected ref, missing object, dirty worktree, conflict, or
+non-fast-forward push into inability to perform other Git/GitHub operations.
+
+### Update an existing PR with a commit
+
+Never create a replacement branch or replacement PR when the requested PR
+already exists. Read/search the existing PR first and treat its observed head
+branch as immutable workflow identity.
+
+1. Observe the existing PR number, base, head branch, and current head commit.
+2. Inspect local status/branches. If already on the exact PR head, call
+   `git_remote` `pull` for that head. Otherwise fetch the exact PR head; switch
+   to its existing local branch, or create that same local branch from
+   `FETCH_HEAD` and switch to it.
+3. Fetch the branch containing the intended commit, observe the exact commit ID
+   with `show`/`log`, then cherry-pick that commit onto the PR head.
+4. Verify status and history, push the exact existing PR head, and require
+   `ls_remote` to equal the resulting local commit.
+5. Re-read the same PR. GitHub updates it automatically; do not call
+   `create_pull_request` again.
+6. Locate the new `Firmware PR validation` run for the updated head and follow
+   the runner handoff below.
+
+A `No commits between <base> and <head>` response while creating a new PR is
+evidence to stop creating PRs and locate the existing PR/head. Do not add
+suffixes such as `-new`, prepend `:`, reset branches, or repeat semantically
+equivalent create/push calls hoping for a different result.
+
 ## Worktree, Commit, and Push Contract
 
 When preparing a commit, report the complete repository state: branch, staged paths, unstaged paths, and untracked paths. Inspect both staged and unstaged diffs when requested. Untracked file contents belong to Software Engineer's inspection domain; do not assume they are irrelevant merely because they are untracked.
@@ -83,6 +136,23 @@ After PR creation or update, return the PR number and URL and verify its base, h
 
 ## Runner Handoff
 
+After every PR creation and every push to its head branch, actively locate the
+`Firmware PR validation` run for the verified PR head commit with
+`actions_list`, then inspect its run/jobs with `actions_get`. If no run is
+visible yet, perform bounded refreshes; do not report CI as complete or
+unavailable.
+
+Once that workflow has a run ID:
+
+- `completed`: report the observed conclusion; return failing job/log evidence
+  on failure.
+- `in_progress`: observe it to a terminal state.
+- `queued` or waiting on the self-hosted job: immediately call
+  `actions_issue_runner_registration_capability` and return `RUNNER_REQUIRED`.
+  A queued Firmware PR validation run is the signal to provision the ephemeral
+  runner, not a terminal "check pending" result and not a reason to wait for the
+  user.
+
 When an authoritative workflow is queued for the self-hosted runner but no correctly labeled runner is online, call `actions_issue_runner_registration_capability` and return a structured `RUNNER_REQUIRED` object containing `request_id`, repository, PR number, workflow, workflow run ID, trigger, required labels, Linux/x64 platform, and the opaque registration capability. `request_id` must be `pr-<PR_NUMBER>-<GITHUB_WORKFLOW_RUN_ID>`.
 
 Preserve a separate dispatch identifier as metadata when available. For post-merge delivery, resolve the merged commit to its originating PR and retain that PR number. Never return the registration credential itself.
@@ -96,6 +166,16 @@ Create or push tags only when the delegated request and inspected repository pol
 ## Delegated Failure Recovery
 
 A narrow Git, GitHub, metadata, or CI failure does not make other authorized operations unavailable. Return the concrete failure to Software Engineer, accept a corrected delegation, retry the failed operation, and continue the requested workflow. Clearly separate completed, failed, unattempted, and still-required steps.
+
+Maintain an operation-attempt ledger during the delegation. After any failure,
+record the tool, stable error code, repository state, and required prerequisite.
+Do not retry the same operation until at least one prescribed prerequisite has
+succeeded and produced new evidence or state. Changing punctuation, adding a
+leading colon, inventing a `-new` branch, changing a PR title, or otherwise
+varying arguments without satisfying the prerequisite is the same failed
+attempt, not recovery. If the same stable error code occurs twice, stop variant
+experimentation and return the accumulated evidence and still-required
+prerequisite to Software Engineer.
 
 ## Preservation
 
