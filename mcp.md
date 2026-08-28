@@ -57,6 +57,13 @@ context,issues,pull_requests,actions,projects
 
 Remote auth mints a repository-restricted installation token inside the ephemeral container with `contents:write` and `workflows:write`, uses a private askpass helper, redacts output, and discards the token.
 
+Git failures are returned as MCP `isError` results with stable codes,
+recoverability classification, and ordered follow-up calls using only the
+bounded Git tools. For example, `UNSAFE_GIT_REF` directs the operator to
+status/branch/log discovery, `REVISION_NOT_FOUND` to fetch/observe/cherry-pick,
+and `NON_FAST_FORWARD` to fetch/rebase/verify/retry. Raw validation exceptions
+must not escape as context-free MCP `-32603` messages.
+
 ## `web-research`
 
 Search uses DuckDuckGo first and Bing RSS fallback. Challenges, transport failures, and empty parsing trigger fallback; dual failure produces one sanitized error. `fetch_page` is independent, blocks loopback/private targets and credential-bearing URLs, limits downloads, and returns bounded content/navigation/find results.
