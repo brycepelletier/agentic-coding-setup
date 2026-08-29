@@ -6,7 +6,7 @@ Combine already-tested components into three roles without broadening any role.
 
 ## Install
 
-Follow [Agent Creation](../agent-creation.md). Copy [Software Engineer](../agent-templates/software-engineer.agent.md), [GitHub Operator](../agent-templates/github-operator.agent.md), and [Docker Operator](../agent-templates/docker-operator.agent.md) to `%APPDATA%\Code\User\prompts`. Do not activate the legacy Web Search agent.
+Follow [Agent Creation](../agent-creation.md) and [Local Agent Orchestration](../agent-orchestration.md). Install the reviewed definitions under `%USERPROFILE%\.agents` with `scripts/sync-agents.ps1 -Mode Install`, then verify them with `-Mode Check`.
 
 Software Engineer receives delegation, `agent-env/*`, two web-research tools, and todo—no Git/GitHub, Docker, or host shell. GitHub Operator is not user-invocable and receives only Git/GitHub tools. Docker Operator is not user-invocable and receives only `docker-app/*`.
 

@@ -64,7 +64,7 @@ Create `%APPDATA%\Code\User\mcp.json` from [the template](templates.md#vs-code-m
 
 Detailed guides: [Stage 8 — Agents](build-guides/08-agents.md) and [Stage 9 — Project](build-guides/09-project.md).
 
-Follow [Agent Creation and Architectural Intent](agent-creation.md). Install the current [Software Engineer](agent-templates/software-engineer.agent.md), [GitHub Operator](agent-templates/github-operator.agent.md), and [Docker Operator](agent-templates/docker-operator.agent.md) definitions under `%APPDATA%\Code\User\prompts`. Do not install the legacy Web Search agent unless deliberately restoring the superseded architecture and updating its tool names. Verify exact frontmatter tool inventories and run all agent acceptance tests. Restore the project's `AGENTS.md`; update legacy `projectEnvironment` wording to `agent-env` only after confirming the live tool name expected by the client.
+Follow [Agent Creation and Architectural Intent](agent-creation.md) and [Local Agent Orchestration](agent-orchestration.md). Install the reviewed templates under `%USERPROFILE%\.agents` with `scripts/sync-agents.ps1 -Mode Install`, then run it with `-Mode Check`. Verify exact frontmatter ownership metadata, explicit `runSubagent` identities, and all agent acceptance tests. Keep project instructions in the project rather than global agent definitions.
 
 ## 8. Validate trust boundaries
 

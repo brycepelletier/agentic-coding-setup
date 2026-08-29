@@ -6,7 +6,7 @@ This chapter explains how to recreate the agents and, more importantly, why they
 
 - [Software Engineer template](agent-templates/software-engineer.agent.md)
 - [GitHub Operator template](agent-templates/github-operator.agent.md)
-- [Legacy Web Search template](agent-templates/web-search.legacy.agent.md)
+- [Web Search template](agent-templates/web-search.agent.md)
 
 ## Design objective
 
@@ -66,16 +66,16 @@ web-research/web_search
 web-research/fetch_page
 ```
 
-The MCP itself enforces bounded results, safe URL policy, challenge detection, and Bing fallback. The legacy prompt is retained for historical reconstruction or if an isolated research subagent is desired later; its tools must be updated before reuse.
+The MCP itself enforces bounded results and safe URL policy. The optional Web Search definition uses the current `web-research` tools and remains isolated from repository and host capabilities.
 
 ## Creation procedure in VS Code
 
-1. Create `%APPDATA%\Code\User\prompts` if it does not exist.
-2. Copy `software-engineer.agent.md` and `github-operator.agent.md` from this site's `agent-templates` directory.
-3. Do not install the legacy Web Search prompt in the current configuration.
-4. Confirm the MCP entries are running before opening either agent.
-5. Open the agent picker and verify the exact display names `Software Engineer` and `GitHub Operator`.
-6. Confirm GitHub Operator has `user-invocable: false`; it should normally be reached through delegation.
+1. Confirm VS Code's `chat.agentFilesLocations` enables `~/.agents`.
+2. Run `scripts/sync-agents.ps1 -Mode Install` to copy the reviewed definitions from `agent-templates` to `%USERPROFILE%\.agents`.
+3. Run `scripts/sync-agents.ps1 -Mode Check` to verify byte-for-byte synchronization.
+4. Confirm the MCP entries are running before opening an agent.
+5. Open the agent picker and verify the exact display names `Software Engineer`, `GitHub Operator`, and `Docker Operator`.
+6. Confirm both operator definitions have `user-invocable: false`; they should normally be reached through explicit delegation.
 7. Inspect each agent's visible tools. Stop if the tool inventory is broader than its frontmatter.
 8. Run the acceptance tests below in fresh sessions.
 
@@ -119,18 +119,18 @@ The current VS Code MCP sampling allowlists include the primary Qwen model for a
 Ask in a fresh session:
 
 ```text
-Verify the engineering environment. Report the PlatformIO version, build the
-project, and report the current Git branch without delegating.
+Verify the engineering environment, run a repository-defined build or test,
+and report the current Git branch using the correct specialist.
 ```
 
 Expected:
 
-- calls `agent-env/ensure_environment` first;
-- PlatformIO/build operations succeed in Linux;
-- direct branch discovery fails because `.git` is masked;
-- it does not use a host terminal or GitHub tools.
-
-Then ask it to report branch/status using the proper workflow. Expected: delegation to GitHub Operator.
+- calls `agent-env/describe_agent_system` and observes the ownership map;
+- calls `agent-env/ensure_environment` before repository engineering work;
+- repository-defined build/test operations use the authorized environment;
+- it calls `runSubagent` with `agentName: "GitHub Operator"` for branch/status;
+- it verifies `agent_name: GitHub Operator` in the result;
+- it does not use a host terminal or direct GitHub tools.
 
 Finally, ask it to finish a small issue and create a PR. Expected:
 
@@ -156,7 +156,7 @@ Then exercise repository Python tooling. Expected:
 - it uses `python3` with `cwd: "."` or a relative directory such as `scripts`;
 - it does not pass absolute paths or repeat the project name;
 - it diagnoses concrete `run_command` errors and retries recoverable failures;
-- it attempts authorized upload/hardware verification mechanisms before declaring them unavailable.
+- it attempts authorized repository-provided verification mechanisms before declaring them unavailable.
 
 ### GitHub Operator
 
@@ -183,8 +183,7 @@ With unrelated uncommitted work present, request an operation affecting another 
 6. Record superseded behavior in [history.md](history.md), not in the active prompt.
 
 Updating the repository template alone does not update an installed agent. After
-reviewing a template change, copy both current agent files into
-`%APPDATA%\Code\User\prompts`, restart/reload the agent host as required, and
-compare the installed files with the canonical templates before acceptance
-testing. A successful documentation commit is not evidence that VS Code loaded
-the new prompt.
+reviewing a template change, run `scripts/sync-agents.ps1 -Mode Install`, then
+`scripts/sync-agents.ps1 -Mode Check`. Restart or reload the agent host before
+acceptance testing. A successful documentation commit is not evidence that VS
+Code loaded the new definition.
