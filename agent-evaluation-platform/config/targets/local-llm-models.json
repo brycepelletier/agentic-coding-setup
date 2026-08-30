@@ -1,0 +1,60 @@
+{
+  "targets": [
+			{
+				"model": "gemma4-26b-a4b-qat-uncensored-hauhaucs-balanced-mtp@q4_k_m",
+				"name": "Gemma4 Qat",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "liquidai/lfm2-24b-a2b",
+				"name": "Liquid LFM2",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "qwen3.6-40b-claude-4.6-opus-deckard-heretic-uncensored-thinking-neo-code-di-imatrix-max@iq3_m",
+				"name": "Qwen Claude Opus",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "qwen3-coder-30b-a3b-instruct",
+				"name": "Qwen3 Coder",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "qwen/qwen3.6-35b-a3b",
+				"name": "Qwen Qwen3",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "kat-coder-v2.5-dev-apex",
+				"name": "Kat Coder",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "qwopus3.6-35b-a3b-coder-mtp",
+				"name": "QwOpus Coder",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			},
+			{
+				"model": "google/gemma-4-26b-a4b",
+				"name": "Google Gemma4",
+        "protocol": "openai-chat",
+        "baseUrl": "http://localhost:8080/v1",
+        "path": "/chat/completions"
+			}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "targets": [
+    {
+      "name": "local-openai-compatible-model",
+      "model": "provider/model-name",
+      "protocol": "openai-chat",
+      "baseUrl": "http://localhost:8080/v1",
+      "path": "/chat/completions",
+      "authentication": {
+        "type": "bearer",
+        "env": "OPENAI_API_KEY"
+      },
+      "requestParameters": {
+        "temperature": 0.1
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+[submodule "agent-tests/fixtures/agent-env-mcp"]
+	path = agent-tests/fixtures/agent-env-mcp
+	url = https://github.com/brycepelletier/agent-env-mcp.git
+[submodule "agent-tests/fixtures/docker-app-mcp"]
+	path = agent-tests/fixtures/docker-app-mcp
+	url = https://github.com/brycepelletier/docker-app-mcp.git
+[submodule "agent-tests/fixtures/github-app-mcp"]
+	path = agent-tests/fixtures/github-app-mcp
+	url = https://github.com/brycepelletier/github-app-mcp.git
+[submodule "agent-tests/fixtures/web-research-mcp"]
+	path = agent-tests/fixtures/web-research-mcp
+	url = https://github.com/zoharbabin/web-researcher-mcp.git

@@ -1,0 +1,12 @@
+{
+  "suiteVersion": "1.1.0",
+  "defaultSystemPrompt": {
+    "id": "qualification-output-contract",
+    "version": "1.0.0",
+    "content": "You are taking a qualification test. Follow the REQUIRED OUTPUT FORMAT exactly. For numbered questions, begin each answer with the matching number and requested canonical answer token. Do not repeat the question before answering it. Reason silently unless the prompt explicitly requests an explanation."
+  },
+  "warmup": {
+    "systemPrompt": "This is a warmup request before a qualification run. Respond briefly to the greeting.",
+    "userPrompt": "Hello! Please reply with READY when you are ready to begin."
+  }
+}
