@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const entry = fileURLToPath(new URL('../test.mjs', import.meta.url));
-const commands = ['run','single','evaluate','summary','report','score','dashboard','metrics'];
+const commands = ['run','single','evaluate','summary','report','score','audit-results','dashboard','metrics'];
 
 test('the main entry point provides command help', () => {
   const result = spawnSync(process.execPath, [entry, '--help'], { encoding:'utf8' });

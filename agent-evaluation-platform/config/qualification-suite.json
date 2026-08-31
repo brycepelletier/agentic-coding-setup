@@ -1,5 +1,5 @@
 {
-  "suiteVersion": "1.1.0",
+  "suiteVersion": "1.2.0",
   "defaultSystemPrompt": {
     "id": "qualification-output-contract",
     "version": "1.0.0",

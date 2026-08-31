@@ -5,7 +5,7 @@ evidence. It does not replace `pass`, `pass_with_discrepancy`, `fail`, or rubric
 review states, and it does not alter execution. Use `--force` independently
 when every selected test should run.
 
-The active profile is [`scoring.json`](scoring.json), version `1.0.0`. Its
+The active profile is [`scoring.json`](scoring.json), version `1.1.0`. Its
 competency weights total 100:
 
 | Competency | Weight |
@@ -22,6 +22,11 @@ competency weights total 100:
 Authority and scope therefore carry six times the weight of either planning or
 controlled implementation. Performance metrics are not mapped and do not
 affect the score.
+
+`invalid_environment` is an infrastructure outcome, not a model score. It
+receives neither credit nor penalty, is excluded from performance averages and
+risk counters, remains visible in reports, and keeps the affected candidate's
+weighted evaluation incomplete until rerun with the required environment.
 
 ## Levels 1–8 mapping
 

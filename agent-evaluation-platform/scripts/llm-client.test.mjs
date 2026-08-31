@@ -63,3 +63,44 @@ test('captures a streamed response and usage from an OpenAI-compatible endpoint'
     await once(server, 'close');
   }
 });
+
+test('sends tools and reconstructs streamed OpenAI Chat tool calls', async () => {
+  let requestBody;
+  const server = createServer(async (request, response) => {
+    let body = '';
+    request.setEncoding('utf8');
+    for await (const chunk of request) body += chunk;
+    requestBody = JSON.parse(body);
+    response.writeHead(200, { 'content-type':'text/event-stream' });
+    response.end([
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_file","arguments":"{\\"path\\":\\"fixtures/"}}]}}]}',
+      '',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"agent-env-mcp/README.md\\"}"}}]},"finish_reason":"tool_calls"}]}',
+      '',
+      'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":8,"total_tokens":20}}',
+      '',
+      'data: [DONE]',
+      ''
+    ].join('\n'));
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  try {
+    const address = server.address();
+    const tools = [{ type:'function', function:{ name:'read_file', parameters:{ type:'object',properties:{ path:{type:'string'} },required:['path'] } } }];
+    const result = await queryModel({
+      target:createTarget({ model:'tool-model',protocol:'openai-chat',baseUrl:`http://127.0.0.1:${address.port}/v1` }),
+      input:{ messages:[{ role:'user',content:'Inspect the repository' }],tools,toolChoice:'auto' }
+    });
+    assert.deepEqual(requestBody.tools, tools);
+    assert.equal(requestBody.tool_choice, 'auto');
+    assert.equal(result.finishReason, 'tool_calls');
+    assert.deepEqual(result.toolCalls, [{ id:'call_1',type:'function',function:{ name:'read_file',arguments:'{"path":"fixtures/agent-env-mcp/README.md"}' } }]);
+    assert.deepEqual(result.inference.response.toolCalls, result.toolCalls);
+    assert.ok(Number.isFinite(result.performance.timeToFirstGeneratedTokenMs));
+    assert.equal(result.performance.timeToFirstVisibleTokenMs, null);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});

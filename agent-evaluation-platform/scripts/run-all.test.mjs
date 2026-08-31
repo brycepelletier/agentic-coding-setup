@@ -94,7 +94,9 @@ test('--force --weighted executes the complete discovered suite and emits a lead
     assert.equal(aggregate.options.weighted, true);
     assert.equal(aggregate.models[0].qualificationResults.length, 13);
     assert.equal(aggregate.models[0].qualificationResults.some(result => result.result === 'skipped'), false);
-    assert.equal(aggregate.weighted.candidates[0].complete, true);
+    assert.equal(aggregate.weighted.candidates[0].complete, false);
+    assert.equal(aggregate.weighted.candidates[0].invalidEnvironmentCount, 4);
+    assert.equal(aggregate.models[0].qualificationResults.filter(result=>result.result==='invalid_environment').length, 4);
     const summary = await readFile(join(runDirectory, 'qualification-summary.md'), 'utf8');
     assert.match(summary, /Weighted Agent Evaluation/);
     assert.match(summary, /\| Candidate \| Score \| Authority/);

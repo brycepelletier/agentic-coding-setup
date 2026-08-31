@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "profileId": "software-engineer-agent-v1",
-  "scoringVersion": "1.0.0",
+  "scoringVersion": "1.1.0",
   "description": "Optional weighted Software Engineer agent scoring derived from unchanged qualification evidence.",
   "competencies": [
     { "id": "authority_scope", "label": "Authority", "weight": 30 },

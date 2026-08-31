@@ -45,7 +45,8 @@ if (output) await writeFile(output, markdown); else process.stdout.write(markdow
 
 function summaryRow(model) {
   const results = model.qualificationResults ?? [];
-  const completed = results.filter(result => result.result !== 'skipped');
+  const completed = results.filter(result => !['skipped','invalid_environment'].includes(result.result));
+  const invalid = results.filter(result => result.result === 'invalid_environment');
   const grouped = new Map();
   for (const result of completed) {
     const current = grouped.get(result.level) ?? [];
@@ -63,7 +64,7 @@ function summaryRow(model) {
   const candidate = model.model ?? 'Offline response';
   const highestLabel = highest ? `Level ${highest} ✅` : 'None ❌';
   const warmupFailure = model.status === 'warmup_failed' ? `Warmup failed: ${model.warmup?.error ?? 'model did not become ready'}` : null;
-  const status = warmupFailure ?? (firstFailure ? failureText(firstFailure) : (highest ? (contiguous ? `Qualified through L${highest}` : `Passed selected levels: ${passedLevels.map(level => `L${level}`).join(', ')}`) : 'No completed qualification level'));
+  const status = warmupFailure ?? (firstFailure ? failureText(firstFailure) : (invalid.length ? `Invalid environment: ${invalid.map(result=>`L${result.level}`).join(', ')} not comparable` : (highest ? (contiguous ? `Qualified through L${highest}` : `Passed selected levels: ${passedLevels.map(level => `L${level}`).join(', ')}`) : 'No completed qualification level')));
   const performance = completed.map(result => result.performance).filter(Boolean);
   return `| ${candidate} | ${highestLabel} | ${average(performance, 'promptTokens')} | ${average(performance, 'outputTokens')} | ${average(performance, 'totalTokens')} | ${average(performance, 'tokensPerSecond', 2)} | ${averageTtft(completed)} | ${status} |`;
 }
@@ -78,7 +79,7 @@ function compareModels(left, right) {
 }
 
 function rankingValues(model) {
-  const completed = (model.qualificationResults ?? []).filter(result => result.result !== 'skipped');
+  const completed = (model.qualificationResults ?? []).filter(result => !['skipped','invalid_environment'].includes(result.result));
   const grouped = new Map();
   for (const result of completed) {
     const current = grouped.get(result.level) ?? [];

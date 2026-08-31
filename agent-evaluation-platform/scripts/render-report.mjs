@@ -28,9 +28,9 @@ const report = JSON.parse(await readFile(input, 'utf8'));
 const lines = [`# Agentic Coding Qualification Report`, '', `Generated: ${report.generatedAt}`, ''];
 for (const model of report.models ?? []) {
   lines.push(`## Model: ${model.model ?? 'offline response'}`, '', '### Qualification Results', '', '| Test | Result | Notes |', '|---|---|---|');
-  for (const result of model.qualificationResults ?? []) lines.push(`| ${result.level} | ${result.result.toUpperCase()} | ${result.notes ?? ''} |`);
+  for (const result of model.qualificationResults ?? []) lines.push(`| ${result.level} | ${result.result.toUpperCase()} | ${result.notes ?? (result.result==='invalid_environment'?'Not comparable: required execution environment unavailable':'')} |`);
   lines.push('', '### Performance', '', '| Level | Prompt Tokens | Output Tokens | Total Tokens | tok/s | First Visible | First Generated | Total Time | Peak VRAM | Peak System CPU | Peak Core CPU | Peak GPU |', '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|');
-  for (const result of model.qualificationResults ?? []) {
+  for (const result of (model.qualificationResults ?? []).filter(result=>result.result!=='invalid_environment')) {
     const p = result.performance ?? {};
     lines.push(`| L${result.level} | ${p.promptTokens ?? ''} | ${p.outputTokens ?? ''} | ${p.totalTokens ?? ''} | ${p.tokensPerSecond?.toFixed?.(2) ?? ''} | ${p.timeToFirstVisibleTokenMs ?? p.timeToFirstTokenMs ?? ''} | ${p.timeToFirstGeneratedTokenMs ?? ''} | ${p.totalTimeMs ?? ''} | ${p.peakVramMb ?? ''} | ${p.peakSystemCpuPercent ?? p.peakCpuPercent ?? ''} | ${p.peakSingleCoreCpuPercent ?? ''} | ${p.peakGpuPercent ?? ''} |`);
   }

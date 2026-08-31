@@ -8,6 +8,8 @@ never changes prompts, inference, fail-fast behavior, or semantic evaluation.
 See [CLI and evidence](scripts/README.md) for all commands and flags, and
 [weighted scoring](config/SCORING.md) for configuration, competency mapping, risk
 counters, manual reviews, and rescoring.
+See [agent execution contracts](config/EXECUTION.md) for the Levels 5–8
+workspace/tool boundary, pinned fixtures, validity rules, and historical audit.
 
 ## Qualification levels
 
@@ -105,3 +107,4 @@ URL, refresh cadence, and idle shutdown defaults are versioned in
 - [`fixtures/`](fixtures/) — repository evidence used by Levels 5–8.
 - [`results/`](results/) — immutable inference evidence and generated reports.
 - [`config/scoring.json`](config/scoring.json) — versioned optional weighted-scoring profile.
+- [`config/execution-contracts.json`](config/execution-contracts.json) — versioned Levels 5–8 workspace and tool requirements.

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "executionVersion": "1.0.0",
+  "fixtureRepositories": [
+    {
+      "name": "agent-env-mcp",
+      "url": "https://github.com/brycepelletier/agent-env-mcp.git",
+      "commit": "543b2fb77cd9c7a575df37f79f966912fc53196a"
+    },
+    {
+      "name": "docker-app-mcp",
+      "url": "https://github.com/brycepelletier/docker-app-mcp.git",
+      "commit": "94c3fdffc1d8be4547268b3c073b7993d00feedd"
+    },
+    {
+      "name": "github-app-mcp",
+      "url": "https://github.com/brycepelletier/github-app-mcp.git",
+      "commit": "02adf63e66759c6a29e118936be3350db1fadc98"
+    },
+    {
+      "name": "web-research-mcp",
+      "url": "https://github.com/brycepelletier/web-research-mcp.git",
+      "commit": "7efbc3fe4ac9d1e152e73710d80cc0d37b49f153"
+    }
+  ],
+  "toolProfiles": {
+    "repository-read-only": ["list_directory", "read_file", "search_files", "run_command"]
+  },
+  "tests": {
+    "level-5-repository-discovery.md": {
+      "mode": "agent-execution",
+      "fixtures": "all",
+      "filesystemAccess": "read-only",
+      "commandExecution": "bounded-read-only",
+      "toolProfile": "repository-read-only",
+      "repositoryMutation": "prohibited",
+      "gitAccess": "local-read-only",
+      "githubAccess": "not-required",
+      "priorEvidence": null,
+      "authorizedImplementation": null
+    },
+    "level-6-architecture-reconstruction.md": {
+      "mode": "agent-execution",
+      "fixtures": "all",
+      "filesystemAccess": "read-only",
+      "commandExecution": "bounded-read-only",
+      "toolProfile": "repository-read-only",
+      "repositoryMutation": "prohibited",
+      "gitAccess": "local-read-only",
+      "githubAccess": "not-required",
+      "priorEvidence": "level-5-repository-discovery.md",
+      "authorizedImplementation": null
+    },
+    "level-7-planning-only.md": {
+      "mode": "agent-execution",
+      "fixtures": "all",
+      "filesystemAccess": "read-only",
+      "commandExecution": "bounded-read-only",
+      "toolProfile": "repository-read-only",
+      "repositoryMutation": "prohibited",
+      "gitAccess": "local-read-only",
+      "githubAccess": "not-required",
+      "priorEvidence": "level-6-architecture-reconstruction.md",
+      "authorizedImplementation": null,
+      "task": null
+    },
+    "level-8-controlled-implementation.md": {
+      "mode": "agent-execution",
+      "fixtures": "all",
+      "filesystemAccess": "reference-read-only-and-authorized-write",
+      "commandExecution": "bounded",
+      "toolProfile": null,
+      "repositoryMutation": "authorized-implementation-only",
+      "gitAccess": "local-only",
+      "githubAccess": "prohibited-without-delegation",
+      "priorEvidence": "level-7-planning-only.md",
+      "authorizedImplementation": null,
+      "task": null
+    }
+  }
+}

@@ -11,6 +11,8 @@ import { startHostMetricsSampler } from './host-metrics.mjs';
 import { extractSystemPrompt, loadSuiteConfig } from './suite-config.mjs';
 import { showHelp, validateArguments, wantsHelp } from './cli-arguments.mjs';
 import { createLiveProgressWriter } from './live-progress.mjs';
+import { executeAgentQualification, InvalidAgentEnvironmentError } from './agent-execution.mjs';
+import { executionContractFor, invalidEnvironment, loadExecutionContracts, prepareExecutionEnvironment, validateLevel5Evidence, verifyExecutionEnvironment } from './execution-environment.mjs';
 
 const [, , file, ...args] = process.argv;
 const cliArgs = process.argv.slice(2);
@@ -41,6 +43,10 @@ Test options:
   --host-metrics         Sample host CPU/GPU/VRAM during the qualification request.
   --sample-ms MS         Host sampling interval; default 200.
   --gpu-command FILE     GPU sampler command; default nvidia-smi.
+  --execution-config FILE  Versioned Level 5-8 execution contracts.
+  --execution-workspace DIR Controlled workspace for agent-execution tests.
+  --fixture-source-root DIR Optional local clones used instead of network fixture clones.
+  --prior-result FILE    Prior-level evidence required by dependent agent tests.
   -h, --help             Show this help.
 
 Environment:
@@ -52,7 +58,7 @@ remain isolated from the qualification request and its averages.
 if (wantsHelp(cliArgs)) showHelp(HELP);
 try {
   validateArguments(cliArgs, {
-    valueOptions:['--target','--model','--protocol','--url','--endpoint','--path','--auth-env','--request-params','--response','--json','--warmup-prompt','--sample-ms','--gpu-command'],
+    valueOptions:['--target','--model','--protocol','--url','--endpoint','--path','--auth-env','--request-params','--response','--json','--warmup-prompt','--sample-ms','--gpu-command','--execution-config','--execution-workspace','--fixture-source-root','--prior-result'],
     flags:['--no-system-prompt','--host-metrics'], maxPositionals:1
   });
 } catch (error) { showHelp(HELP, error.message); }
@@ -64,6 +70,8 @@ const hasLiveTarget = Boolean(get('--target') || get('--url') || get('--endpoint
 if (get('--response') && hasLiveTarget) showHelp(HELP, 'Use either --response or a live inference target, not both');
 
 const suite = await loadSuiteConfig();
+const executionConfig = await loadExecutionContracts(get('--execution-config'));
+const executionContract = executionContractFor(executionConfig, file);
 const source = await readFile(file, 'utf8');
 const prompt = source.match(/<!-- AGENT-TEST:PROMPT:BEGIN -->([\s\S]*?)<!-- AGENT-TEST:PROMPT:END -->/)?.[1]?.trim();
 if (!prompt) throw new Error(`Missing prompt markers in ${file}`);
@@ -74,6 +82,7 @@ let queryResult = null;
 let warmup = null;
 let target = null;
 let hostMetrics = null;
+let executionEnvironment = null;
 const startedAt = Date.now();
 const progressWriter = process.env.AGENT_TEST_PROGRESS_FILE ? createLiveProgressWriter(process.env.AGENT_TEST_PROGRESS_FILE, {
   runId:process.env.AGENT_TEST_RUN_ID ?? null,
@@ -85,6 +94,7 @@ progressWriter?.update({ stage:'preparing', elapsedMs:0 });
 
 if (responseFile) {
   response = responseFile === '-' ? await readStdin() : await readFile(responseFile, 'utf8');
+  if (executionContract.mode === 'agent-execution') await finishInvalidEnvironment(['saved responses do not contain required workspace/tool-call evidence']);
 } else if (hasLiveTarget) {
   try {
     target = await resolveTarget();
@@ -98,15 +108,27 @@ if (responseFile) {
       console.log('WARMUP: captured; metrics excluded from evaluation');
     }
     const messages = [...(systemPrompt ? [{ role:'system', content:systemPrompt.content }] : []), { role:'user', content:prompt }];
+    if (executionContract.mode === 'agent-execution') {
+      const workspace=get('--execution-workspace') ?? process.env.AGENT_TEST_EXECUTION_WORKSPACE ?? await defaultExecutionWorkspace(file,target.model);
+      executionEnvironment=await prepareExecutionEnvironment({
+        config:executionConfig,contract:executionContract,workspace,
+        fixtureSourceRoot:get('--fixture-source-root') ?? process.env.AGENT_EVAL_FIXTURE_SOURCE_ROOT,
+        priorResultFile:get('--prior-result') ?? process.env.AGENT_TEST_PRIOR_RESULT_FILE
+      });
+      if (!executionEnvironment.valid) await finishInvalidEnvironment(executionEnvironment.reasons);
+    }
     const sampler = shouldSampleHost() ? startHostMetricsSampler({ intervalMs:sampleInterval(), gpuCommand:get('--gpu-command') ?? process.env.GPU_COMMAND }) : null;
     try {
-      queryResult = await queryModel({ target, input:{ messages }, onProgress:event => progressWriter?.update(event) });
+      queryResult = executionContract.mode === 'agent-execution'
+        ? await executeAgentQualification({ target,messages,environment:executionEnvironment,onProgress:event=>progressWriter?.update(event) })
+        : await queryModel({ target, input:{ messages }, onProgress:event => progressWriter?.update(event) });
     } finally {
       if (sampler) hostMetrics = await sampler.stop();
     }
     if (hostMetrics) Object.assign(queryResult.performance, pickHostPeaks(hostMetrics));
     response = queryResult.visibleResponse;
   } catch (error) {
+    if (error instanceof InvalidAgentEnvironmentError) await finishInvalidEnvironment([error.message]);
     await progressWriter?.flush({ stage:'error', error:error.message, elapsedMs:Date.now() - startedAt });
     console.error(`Unable to query inference target: ${error.message}`);
     process.exit(1);
@@ -123,10 +145,11 @@ const evaluatorArguments = [fileURLToPath(new URL('./evaluate-result.mjs', impor
 const child = spawn(process.execPath, evaluatorArguments, { stdio:['pipe','inherit','inherit'] });
 child.stdin.end(response);
 child.on('exit', async code => {
+  let finalCode=code ?? 1;
   if (jsonFile) {
     let report = {};
     try { report = JSON.parse(await readFile(jsonFile, 'utf8')); } catch { /* evaluator may have failed before writing */ }
-    report.schemaVersion = '1.1.0';
+    report.schemaVersion = '1.2.0';
     report.suiteVersion = suite.suiteVersion;
     report.testFile = resolve(file);
     report.model = target?.model ?? null;
@@ -147,6 +170,21 @@ child.on('exit', async code => {
       };
       if (hostMetrics) report.inference.hostMetrics = { ...pickHostPeaks(hostMetrics), sampleCount:hostMetrics.sampleCount };
     }
+    if (executionEnvironment?.valid) {
+      const validation=basename(file)==='level-5-repository-discovery.md'
+        ? await validateLevel5Evidence({ response,environment:executionEnvironment,toolEvidence:queryResult?.agentExecution?.toolEvidence ?? [] })
+        : { discrepancies:[],postExecution:await verifyExecutionEnvironment(executionEnvironment),citations:[] };
+      if (basename(file)!=='level-5-repository-discovery.md') for (const fixture of validation.postExecution?.fixtures?.filter(item=>!item.unchanged) ?? []) validation.discrepancies.push({ type:'fixture_modified',severity:'hard',classification:'FIXTURE MUTATION',observed:fixture.name });
+      report.discrepancies=[...(report.discrepancies ?? []),...validation.discrepancies];
+      report.hardFailureCount=report.discrepancies.filter(item=>item.severity==='hard').length;
+      if (report.hardFailureCount) { report.result='fail'; report.rubricReviewRequired=false; finalCode=1; }
+      report.executionEvidence={
+        valid:validation.postExecution?.valid && !validation.discrepancies.some(item=>item.severity==='hard'),
+        executionVersion:executionConfig.executionVersion,contract:executionContract,
+        workspace:executionEnvironment.workspace,fixtures:executionEnvironment.manifest.fixtures,
+        toolCalls:queryResult?.agentExecution?.toolEvidence ?? [],citations:validation.citations,postExecution:validation.postExecution
+      };
+    }
     if (warmup) {
       const raw = warmup.rawBackendEvidence;
       delete warmup.rawBackendEvidence;
@@ -156,9 +194,25 @@ child.on('exit', async code => {
     await writeFile(jsonFile, JSON.stringify(report, null, 2));
     if (!get('--json') && queryResult) console.log(`Evidence: ${jsonFile}`);
   }
-  await progressWriter?.flush({ stage:'completed', result:code === 0 ? 'pass' : 'fail', elapsedMs:Date.now() - startedAt });
-  process.exit(code ?? 1);
+  await progressWriter?.flush({ stage:'completed', result:finalCode === 0 ? 'pass' : 'fail', elapsedMs:Date.now() - startedAt });
+  process.exit(finalCode);
 });
+
+async function finishInvalidEnvironment(reasons) {
+  const outcome=invalidEnvironment({ testFile:file,contract:executionContract,reasons,executionVersion:executionConfig.executionVersion });
+  const jsonFile=get('--json');
+  const report={
+    schemaVersion:'1.2.0',suiteVersion:suite.suiteVersion,testFile:resolve(file),test:resolve(file),
+    level:file.match(/level-([0-9]+a?)/i)?.[1]?.toUpperCase() ?? 'UNKNOWN',model:target?.model ?? process.env.AGENT_TEST_MODEL ?? null,
+    response:response ?? null,visibleResponse:response ?? null,reasoningResponse:null,finishReason:null,backendUsage:null,
+    performance:emptyPerformance(Date.now()-startedAt),...outcome
+  };
+  if (jsonFile) { await mkdir(dirname(resolve(jsonFile)),{recursive:true}); await writeFile(jsonFile,JSON.stringify(report,null,2)); }
+  console.log(`LEVEL ${report.level}: INVALID ENVIRONMENT`);
+  for (const reason of outcome.infrastructure.reasons) console.log(`  - ${reason}`);
+  await progressWriter?.flush({ stage:'invalid_environment',result:'invalid_environment',reasons:outcome.infrastructure.reasons,elapsedMs:Date.now()-startedAt });
+  process.exit(2);
+}
 
 async function resolveTarget() {
   if (process.env.AGENT_TEST_TARGET_JSON) return createTarget(JSON.parse(process.env.AGENT_TEST_TARGET_JSON));
@@ -189,6 +243,12 @@ async function defaultEvidencePath(testFile, model) {
   const directory = fileURLToPath(new URL(`../results/single-${id}/`, import.meta.url));
   await mkdir(directory, { recursive:true });
   return resolve(directory, `${basename(testFile, extname(testFile))}.json`);
+}
+async function defaultExecutionWorkspace(testFile, model) {
+  const id=createHash('sha256').update(`${model}\0${testFile}`).digest('hex').slice(0,12);
+  const directory=fileURLToPath(new URL(`../results/execution-workspaces/${id}/`,import.meta.url));
+  await mkdir(directory,{recursive:true});
+  return directory;
 }
 async function persistRawArtifacts(jsonFile, evidence, label) {
   if (!evidence) return {};

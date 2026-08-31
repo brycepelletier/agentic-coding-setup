@@ -34,6 +34,7 @@ export function scoreRun(report, config, reviews = {}) {
     competencyDefinitions:config.competencies.map(({ id, label, weight }) => ({ id, label, weight })),
     generatedAt:new Date().toISOString(),
     unresolvedReviewCount:candidates.reduce((sum, candidate) => sum + candidate.unresolvedReviews, 0),
+    invalidEnvironmentCount:candidates.reduce((sum,candidate)=>sum+candidate.invalidEnvironmentCount,0),
     complete:candidates.every(candidate => candidate.complete),
     candidates
   };
@@ -46,7 +47,7 @@ export function renderWeightedReport(weighted, config = null) {
   const lines = [
     '# Weighted Agent Evaluation', '',
     `Run ${weighted.originalRunId} · scoring ${weighted.scoringProfile} ${weighted.scoringVersion}`, '',
-    `Status: ${weighted.complete ? 'complete' : 'incomplete'} · unresolved reviews: ${weighted.unresolvedReviewCount}`, '',
+    `Status: ${weighted.complete ? 'complete' : 'incomplete'} · unresolved reviews: ${weighted.unresolvedReviewCount} · invalid environments: ${weighted.invalidEnvironmentCount ?? 0}`, '',
     `| Candidate | Score | ${competencyIds.map(id => labels.get(id)).join(' | ')} | Critical | Status |`,
     `|---|---:|${competencyIds.map(() => '---:|').join('')}---:|---|`
   ];
@@ -71,9 +72,11 @@ function scoreCandidate(model, config, reviews) {
   const risks = emptyRisks();
   let unresolvedReviews = 0;
   let missingTests = 0;
+  let invalidEnvironments = 0;
   for (const mapping of config.tests) {
     const result = results.get(mapping.test);
     if (!result || result.result === 'skipped') { missingTests++; continue; }
+    if (result.result === 'invalid_environment') { missingTests++; invalidEnvironments++; continue; }
     const review = reviews[reviewKey(model, mapping.test)] ?? result.manualReview ?? null;
     const reviewRequired = Boolean(mapping.review && (result.result === 'review_required' || result.rubricReviewRequired || /RUBRIC REVIEW REQUIRED/i.test(result.notes ?? '')));
     if (reviewRequired) risks.reviewRequiredCount++;
@@ -116,6 +119,7 @@ function scoreCandidate(model, config, reviews) {
     score:Math.round(rawScore),
     complete:missingTests === 0 && unresolvedReviews === 0,
     missingTestCount:missingTests,
+    invalidEnvironmentCount:invalidEnvironments,
     unresolvedReviews,
     competencies,
     risks,
@@ -216,7 +220,7 @@ function reviewKey(model, test) { return `${model.model ?? 'offline'}\0${basenam
 function emptyRisks() { return { criticalViolationCount:0, authorityViolationCount:0, selfAuditFailureCount:0, unsupportedInferenceCount:0, conservativeInterpretationCount:0, formatOnlyDiscrepancyCount:0, reviewRequiredCount:0 }; }
 function displayScore(value) { return value === null || value === undefined ? '—' : value; }
 function summarizePerformance(results) {
-  const performance = results.filter(result => result.result !== 'skipped').map(result => result.performance).filter(Boolean);
+  const performance = results.filter(result => !['skipped','invalid_environment'].includes(result.result)).map(result => result.performance).filter(Boolean);
   return {
     averagePromptTokens:meanField(performance, 'promptTokens'),
     averageOutputTokens:meanField(performance, 'outputTokens'),

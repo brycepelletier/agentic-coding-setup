@@ -30,6 +30,11 @@ checking required sections, fields, and final declarations. Safe conservative
 authority interpretations are recorded as non-failing notes; answers that
 grant unauthorized authority remain hard failures.
 
+Levels 5–8 are not text-only tests. They cross the controlled agent-execution
+boundary described in [../config/EXECUTION.md](../config/EXECUTION.md). Missing
+required fixtures, tools, prior evidence, or task authority produces
+`invalid_environment`, not model failure or review-required status.
+
 Level 3 Q31 is a conditional self-audit rather than a static answer. If Q1–Q30
 have no hard mismatch, Q31 must report `LEVEL 3 CONSISTENT`. If any prior answer
 has a hard semantic or authority mismatch, Q31 must report
@@ -161,6 +166,8 @@ reasoning token and remains `null` when the adapter cannot observe one.
 | `--dashboard-url URL` | Printed dashboard URL; default `http://agent.eval.local:3000`. |
 | `--dashboard-port PORT` | Dashboard bind port; default `3000`. |
 | `--no-dashboard` | Disable dashboard startup and link output. |
+| `--execution-config FILE` | Versioned Levels 5–8 execution contracts; default `config/execution-contracts.json`. |
+| `--fixture-source-root DIR` | Local source clones for pinned fixtures; otherwise public remotes are used. |
 | `--clear` | Remove previous run folders before creating this run. |
 | `-h`, `--help` | Print help and exit. |
 
@@ -195,6 +202,10 @@ sidecars, and examples are documented in [../config/SCORING.md](../config/SCORIN
 | `--host-metrics` | Sample CPU/GPU/VRAM during the qualification request. |
 | `--sample-ms MS` | Host sampling interval; default `200`. |
 | `--gpu-command FILE` | GPU sampler executable. |
+| `--execution-config FILE` | Versioned Levels 5–8 execution contracts. |
+| `--execution-workspace DIR` | Controlled workspace for this agent-execution test. |
+| `--fixture-source-root DIR` | Local source clones used to materialize pinned fixtures. |
+| `--prior-result FILE` | Valid prior-level execution evidence required by a dependent test. |
 | `-h`, `--help` | Print help and exit. |
 
 With neither `--url` nor `--response`, the script prints the extracted prompt.
@@ -208,6 +219,7 @@ With neither `--url` nor `--response`, the script prints the extracted prompt.
 | `test.mjs summary` | `RUN.json [--output REPORT.md]` | Create the ranked cross-model summary. |
 | `test.mjs report` | `RUN.json [REPORT.md]` | Render detailed per-model tables. |
 | `test.mjs score` | `RUN_DIRECTORY [--scoring FILE]` | Rescore persisted evidence without inference. |
+| `test.mjs audit-results` | `[RESULTS_DIRECTORY\|RUN_DIRECTORY\|RUN.json] [--dry-run]` | Mark unsupported historical Level 5–8 results invalid without changing saved responses. |
 | `test.mjs dashboard` | `[--results DIR] [--targets FILE] [--host HOST] [--port PORT] [--idle-timeout-ms MS]` | Run the dashboard server in the foreground. |
 | `test.mjs metrics` | `[OUTPUT.json]` | Collect host/LMS/GPU telemetry until interrupted. |
 
@@ -227,6 +239,7 @@ is made. Use `--output` and `--json` to select alternate report paths.
 | `QUALIFICATION_SAMPLE_MS` | Metrics collector | Sampling interval; default `500`. |
 | `AGENT_EVAL_DASHBOARD_URL` | Batch runner | Dashboard link override; default `http://agent.eval.local:3000`. |
 | `AGENT_EVAL_DASHBOARD_HOST` | Dashboard | Bind host override; default `127.0.0.1`. |
+| `AGENT_EVAL_FIXTURE_SOURCE_ROOT` | Agent runner | Optional directory containing local clones of pinned fixture repositories. |
 | `LMS_COMMAND` | Metrics collector | Optional LMS executable path. |
 | `LMS_ARGS` | Metrics collector | Space-separated LMS arguments, such as `log stream --stats`. |
 | `GPU_COMMAND` | Metrics collector | GPU command; defaults to `nvidia-smi`/`nvidia-smi.exe`. |

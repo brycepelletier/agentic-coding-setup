@@ -14,6 +14,7 @@ import { loadDashboardConfig } from './dashboard-config.mjs';
 import { ensureDashboard } from './dashboard-launcher.mjs';
 import { createLiveProgressWriter } from './live-progress.mjs';
 import { writeJsonAtomically } from './atomic-write.mjs';
+import { executionContractFor, loadExecutionContracts } from './execution-environment.mjs';
 
 const dir = new URL('../test/', import.meta.url);
 const args = process.argv.slice(2);
@@ -52,6 +53,8 @@ Run options:
   --dashboard-url URL    Public dashboard URL; default http://agent.eval.local:3000.
   --dashboard-port PORT  Dashboard HTTP port; default 3000.
   --no-dashboard         Do not print or start the live dashboard.
+  --execution-config FILE Versioned Level 5-8 execution contracts.
+  --fixture-source-root DIR Local pinned fixture clones; otherwise public remotes are used.
   --clear                Remove previous result-run folders before starting.
   -h, --help             Show this help.
 
@@ -61,13 +64,14 @@ is warmed independently and warmup evidence is excluded from evaluation and aver
 if (wantsHelp(args)) showHelp(HELP);
 try {
   validateArguments(args, {
-    valueOptions:['--targets','--models','--protocol','--url','--endpoint','--path','--auth-env','--request-params','--responses','--levels','--metrics','--sample-ms','--gpu-command','--json','--warmup-prompt','--scoring','--dashboard-url','--dashboard-port'],
+    valueOptions:['--targets','--models','--protocol','--url','--endpoint','--path','--auth-env','--request-params','--responses','--levels','--metrics','--sample-ms','--gpu-command','--json','--warmup-prompt','--scoring','--dashboard-url','--dashboard-port','--execution-config','--fixture-source-root'],
     flags:['--force','--weighted','--host-metrics','--no-system-prompt','--no-dashboard','--clear'], maxPositionals:1
   });
 } catch (error) { showHelp(HELP, error.message); }
 const getOption = name => { const index=args.findIndex(argument=>argument===name || argument.startsWith(`${name}=`)); return index<0 ? undefined : (args[index].includes('=') ? args[index].slice(name.length+1) : args[index+1]); };
 
 const suite = await loadSuiteConfig();
+const executionConfig = await loadExecutionContracts(getOption('--execution-config'));
 const allFiles = (await readdir(dir)).filter(file => /^level-.*\.md$/i.test(file) && !/(?:-answer|-test)\.md$/i.test(file)).sort((a,b) => a.localeCompare(b, undefined, { numeric:true }));
 const selector = getOption('--levels');
 const selectedLevels = selector ? expandLevels(selector) : null;
@@ -96,7 +100,7 @@ const dashboard = await loadDashboardConfig({ url:getOption('--dashboard-url'), 
 const aggregate = {
   runId,
   runDirectory,
-  schemaVersion:'1.1.0',
+  schemaVersion:'1.2.0',
   suiteVersion:suite.suiteVersion,
   generatedAt:new Date().toISOString(),
   startedAt:runStartedAt,
@@ -107,7 +111,8 @@ const aggregate = {
     targets:targets.filter(Boolean).map(publicTarget), metrics:getOption('--metrics') ?? null,
     hostMetrics:args.includes('--host-metrics'), systemPromptDisabled:args.includes('--no-system-prompt'),
     weighted:args.includes('--weighted'), scoring:getOption('--scoring') ?? null,
-    dashboard:dashboardDisabled ? null : { url:dashboard.url, fallbackUrl:dashboard.fallbackUrl }
+    dashboard:dashboardDisabled ? null : { url:dashboard.url, fallbackUrl:dashboard.fallbackUrl },
+    execution:{ version:executionConfig.executionVersion,config:getOption('--execution-config') ?? 'config/execution-contracts.json',fixtureSourceRoot:getOption('--fixture-source-root') ?? process.env.AGENT_EVAL_FIXTURE_SOURCE_ROOT ?? null }
   },
   models:[]
 };
@@ -123,13 +128,17 @@ if (!dashboardDisabled) {
 }
 
 let failed = false;
+let infrastructureInvalid = false;
 for (const target of targets) {
   const model = target?.model ?? 'offline';
   console.log(`\nModel: ${model}`);
   const modelDirectory = resolve(runDirectory, safeModelDirectoryName(model));
+  const executionWorkspace = resolve(modelDirectory, 'execution-workspace');
   await mkdir(modelDirectory, { recursive:true });
   const modelReport = { model:target?.model ?? null, target:target ? publicTarget(target) : null, status:'running', stoppedAfter:null, activeTest:null, warmup:null, qualificationResults:[], performance:[] };
   aggregate.models.push(modelReport);
+  let modelInfrastructureInvalid=false;
+  const priorResults=new Map();
   await persistAggregate();
   if (target) {
     console.log('  Warmup — greeting and model load');
@@ -180,23 +189,39 @@ for (const target of targets) {
     if (args.includes('--no-system-prompt')) command.push('--no-system-prompt');
     const perTestJson = resolve(modelDirectory, `${file.replace('.md', '')}.json`);
     command.push('--json', perTestJson);
+    if (getOption('--execution-config')) command.push('--execution-config',getOption('--execution-config'));
+    if (getOption('--fixture-source-root')) command.push('--fixture-source-root',getOption('--fixture-source-root'));
+    const executionContract=executionContractFor(executionConfig,file);
+    const priorResultFile=executionContract.priorEvidence ? priorResults.get(executionContract.priorEvidence) : null;
     const environment = target ? {
       AGENT_TEST_PARENT_WARMED:'1',
       AGENT_TEST_TARGET_JSON:JSON.stringify(target),
       AGENT_TEST_PROGRESS_FILE:liveProgressPath,
       AGENT_TEST_RUN_ID:runId,
       AGENT_TEST_MODEL:model,
+      AGENT_TEST_EXECUTION_WORKSPACE:executionWorkspace,
+      ...(priorResultFile ? { AGENT_TEST_PRIOR_RESULT_FILE:priorResultFile } : {}),
+      ...(getOption('--fixture-source-root') ? { AGENT_EVAL_FIXTURE_SOURCE_ROOT:getOption('--fixture-source-root') } : {}),
       ...(args.includes('--host-metrics') ? { AGENT_TEST_HOST_METRICS:'1' } : {}),
       ...(getOption('--sample-ms') ? { AGENT_TEST_SAMPLE_MS:getOption('--sample-ms') } : {}),
       ...(getOption('--gpu-command') ? { GPU_COMMAND:getOption('--gpu-command') } : {})
     } : { AGENT_TEST_PROGRESS_FILE:liveProgressPath, AGENT_TEST_RUN_ID:runId, AGENT_TEST_MODEL:model };
     const code = await run(command, '    ', environment);
     const result = await readJson(perTestJson);
-    modelReport.qualificationResults.push({ test:file, level:levelOf(file), result:result?.result ?? (code === 0 ? 'pass' : 'fail'), notes:result?.rubricReviewRequired ? 'RUBRIC REVIEW REQUIRED' : '', rubricReviewRequired:Boolean(result?.rubricReviewRequired), discrepancies:result?.discrepancies ?? [], performance:result?.performance ?? null, evidence:relativeEvidence(modelDirectory, perTestJson, result) });
+    const outcome=result?.result ?? (code === 0 ? 'pass' : 'fail');
+    const notes=outcome==='invalid_environment' ? (result?.infrastructure?.reasons ?? []).join('; ') : (result?.rubricReviewRequired ? 'RUBRIC REVIEW REQUIRED' : '');
+    modelReport.qualificationResults.push({ test:file, level:levelOf(file), result:outcome, notes, rubricReviewRequired:Boolean(result?.rubricReviewRequired), discrepancies:result?.discrepancies ?? [], performance:outcome==='invalid_environment'?null:(result?.performance ?? null), infrastructure:result?.infrastructure ?? null, executionEvidence:result?.executionEvidence ? { valid:result.executionEvidence.valid,executionVersion:result.executionEvidence.executionVersion } : null, evidence:relativeEvidence(modelDirectory, perTestJson, result) });
+    priorResults.set(file,perTestJson);
     modelReport.activeTest = null;
-    if (result?.performance) modelReport.performance.push({ level:levelOf(file), ...result.performance });
+    if (outcome!=='invalid_environment' && result?.performance) modelReport.performance.push({ level:levelOf(file), ...result.performance });
     await persistAggregate();
     await rm(liveProgressPath, { force:true });
+    if (outcome === 'invalid_environment') {
+      infrastructureInvalid=true;
+      modelInfrastructureInvalid=true;
+      console.error(`  INVALID ENVIRONMENT: ${file} was not scored for ${model}`);
+      continue;
+    }
     if (code === 0) continue;
     failed = true;
     modelReport.status = 'failed';
@@ -208,7 +233,7 @@ for (const target of targets) {
   }
   modelReport.qualificationResults = addSkippedLevels(modelReport.qualificationResults, files);
   modelReport.activeTest = null;
-  if (modelReport.status === 'running') modelReport.status = 'completed';
+  if (modelReport.status === 'running') modelReport.status = modelInfrastructureInvalid ? 'incomplete_environment' : 'completed';
   await persistAggregate();
 }
 
@@ -222,7 +247,7 @@ if (args.includes('--weighted')) {
   await writeFile(resolve(runDirectory, 'weighted-results.json'), JSON.stringify(aggregate.weighted, null, 2));
   await writeFile(resolve(runDirectory, 'weighted-summary.md'), renderWeightedReport(aggregate.weighted, scoring));
 }
-aggregate.status = failed ? 'completed_with_failures' : 'completed';
+aggregate.status = failed ? 'completed_with_failures' : (infrastructureInvalid ? 'completed_incomplete_environment' : 'completed');
 aggregate.completedAt = new Date().toISOString();
 await persistAggregate();
 if (jsonExportPath && resolve(jsonExportPath) !== jsonPath) {
@@ -230,7 +255,7 @@ if (jsonExportPath && resolve(jsonExportPath) !== jsonPath) {
   await writeFile(jsonExportPath, JSON.stringify(aggregate, null, 2));
 }
 await run([fileURLToPath(new URL('./finalize-run.mjs', import.meta.url)), jsonPath, '--output', resolve(runDirectory, 'qualification-summary.md'), ...(args.includes('--weighted') ? ['--weighted'] : [])]);
-process.exitCode = failed ? 1 : 0;
+process.exitCode = failed ? 1 : (infrastructureInvalid ? 2 : 0);
 
 async function resolveTargets() {
   const cliAuthentication = getOption('--auth-env') ? { type:'bearer', env:getOption('--auth-env') } : undefined;

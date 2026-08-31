@@ -42,7 +42,7 @@ test('warms a direct live test once and excludes warmup telemetry from test perf
     assert.equal(report.warmup.includedInAverages, false);
     assert.equal(report.warmup.performance.outputTokens, 1000);
     assert.equal(report.performance.outputTokens, 2);
-    assert.equal(report.suiteVersion, '1.1.0');
+    assert.equal(report.suiteVersion, '1.2.0');
     assert.equal(report.inference.protocol, 'openai-chat');
     assert.equal(report.inference.target.model, 'test-model');
     assert.match(report.inference.systemPrompt.content, /qualification test/);

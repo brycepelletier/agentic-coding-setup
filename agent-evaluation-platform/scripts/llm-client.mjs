@@ -54,6 +54,7 @@ export async function queryModel({ target, input, onProgress }) {
     visibleResponse:consumed.visibleResponse,
     reasoningResponse:consumed.reasoningResponse,
     finishReason:consumed.finishReason,
+    toolCalls:consumed.toolCalls ?? [],
     usage:consumed.usage,
     performance,
     rawBackendEvidence:consumed.rawBackendEvidence,
@@ -66,7 +67,7 @@ export async function queryModel({ target, input, onProgress }) {
       requestParameters:built.requestParameters,
       requestBody:built.body,
       requestBodyText,
-      response:{ visible:consumed.visibleResponse, reasoning:consumed.reasoningResponse, finishReason:consumed.finishReason, usage:consumed.usage },
+      response:{ visible:consumed.visibleResponse, reasoning:consumed.reasoningResponse, finishReason:consumed.finishReason, usage:consumed.usage, toolCalls:consumed.toolCalls ?? [] },
       timing:{ startedAt:new Date(startedAt).toISOString(), completedAt:new Date(completedAt).toISOString(), ...performance }
     }
   };

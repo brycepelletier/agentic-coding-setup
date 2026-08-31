@@ -37,6 +37,19 @@ test('incomplete runs omit unavailable tests instead of assigning zero credit', 
   assert.equal(candidate.competencies.authority_scope.possible, 1);
 });
 
+test('invalid environments receive neither credit nor penalty and keep scoring incomplete', () => {
+  const scoring=config([{ id:'authority_scope',label:'Authority',weight:100 }],[
+    { test:'valid.md',groups:[{ competency:'authority_scope',questions:'1' }] },
+    { test:'environment.md',groups:[{ competency:'authority_scope',questions:'1' }] }
+  ]);
+  const candidate=scoreRun(run([result('valid.md','pass'),result('environment.md','invalid_environment')]),scoring).candidates[0];
+  assert.equal(candidate.complete,false);
+  assert.equal(candidate.score,100);
+  assert.equal(candidate.competencies.authority_scope.possible,1);
+  assert.equal(candidate.invalidEnvironmentCount,1);
+  assert.equal(candidate.risks.criticalViolationCount,0);
+});
+
 test('configured risk ceilings remain visible and cap the overall score', () => {
   const scoring = config([{ id:'authority_scope', label:'Authority', weight:100 }], [{ test:'matrix.md', groups:[{ competency:'authority_scope', questions:'1-10' }] }]);
   scoring.criticalFindings = [{ competencies:['authority_scope'], severities:['hard'] }];
