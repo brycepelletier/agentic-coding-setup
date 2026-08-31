@@ -66,9 +66,20 @@ model's levels and advances to the next model.
 Every batch run also starts or reuses the local dashboard. The browser receives
 incremental snapshots over `/live` using `ws://` because the configured site is
 HTTP. A future HTTPS deployment would use `wss://`. Stream progress includes
-visible/reasoning character counts, elapsed time, and a bounded preview; exact
-responses remain in normal evidence artifacts. `run.json` and
-`live-progress.json` are written atomically while the run proceeds.
+visible/reasoning character counts, elapsed time, and the complete accumulated
+output for the active candidate page. Completed candidate pages load exact
+visible, reasoning, and raw backend streams from the normal evidence artifacts.
+`run.json` and `live-progress.json` are written atomically while the run proceeds.
+The live output pane auto-follows while positioned at the bottom and preserves a
+manual scroll position when the viewer scrolls upward.
+
+The main page switches between a compact model-by-test qualification matrix and
+the ranked candidate table. Matrix columns use `L1A`–`L4C`, then `L5`–`L8`,
+while preserving the full colored result labels. Candidate names open detail
+pages. The dashboard can be stopped with its **Shut down** button and
+automatically exits after 15 minutes without a WebSocket-connected browser. Set
+`idleShutdownMs` in `config/dashboard.json` or pass `--idle-timeout-ms MS` to a
+foreground dashboard process.
 
 Direct live `test.mjs single` calls perform the same warmup automatically, even
 when running only one test. When `--json` is supplied, the warmup response and
@@ -197,7 +208,7 @@ With neither `--url` nor `--response`, the script prints the extracted prompt.
 | `test.mjs summary` | `RUN.json [--output REPORT.md]` | Create the ranked cross-model summary. |
 | `test.mjs report` | `RUN.json [REPORT.md]` | Render detailed per-model tables. |
 | `test.mjs score` | `RUN_DIRECTORY [--scoring FILE]` | Rescore persisted evidence without inference. |
-| `test.mjs dashboard` | `[--results DIR] [--host HOST] [--port PORT]` | Run the dashboard server in the foreground. |
+| `test.mjs dashboard` | `[--results DIR] [--targets FILE] [--host HOST] [--port PORT] [--idle-timeout-ms MS]` | Run the dashboard server in the foreground. |
 | `test.mjs metrics` | `[OUTPUT.json]` | Collect host/LMS/GPU telemetry until interrupted. |
 
 `test.mjs score` accepts either a run directory or its `run.json`. It reloads

@@ -2,5 +2,6 @@
   "url": "http://agent.eval.local:3000",
   "fallbackUrl": "http://localhost:3000",
   "bindHost": "127.0.0.1",
-  "pollIntervalMs": 100
+  "pollIntervalMs": 100,
+  "idleShutdownMs": 900000
 }

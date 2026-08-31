@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent Evaluation Platform</title>
+  <link rel="stylesheet" href="/assets/dashboard.css">
+</head>
+<body>
+  <main>
+    <header class="site-header">
+      <div>
+        <a class="eyebrow brand-link" href="/">Live qualification telemetry</a>
+        <h1>Agent Evaluation Platform</h1>
+        <div id="runMeta" class="muted">Waiting for a run…</div>
+      </div>
+      <div class="header-actions">
+        <div class="status"><span id="liveDot" class="dot"></span><span id="connection">Connecting</span></div>
+        <select id="runSelect" aria-label="Qualification run"></select>
+        <button id="shutdownButton" class="button danger" type="button">Shut down</button>
+      </div>
+    </header>
+    <section id="stats" class="stats" aria-label="Run summary"></section>
+    <section id="content"><div class="empty">Loading dashboard…</div></section>
+  </main>
+  <script type="module" src="/assets/dashboard.js"></script>
+</body>
+</html>

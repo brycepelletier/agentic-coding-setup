@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { access, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import { basename, dirname, resolve } from 'node:path';
@@ -13,6 +13,7 @@ import { loadPersistedReviews, loadScoringConfig, renderWeightedReport, scoreRun
 import { loadDashboardConfig } from './dashboard-config.mjs';
 import { ensureDashboard } from './dashboard-launcher.mjs';
 import { createLiveProgressWriter } from './live-progress.mjs';
+import { writeJsonAtomically } from './atomic-write.mjs';
 
 const dir = new URL('../test/', import.meta.url);
 const args = process.argv.slice(2);
@@ -261,4 +262,4 @@ async function readJson(file) { try { return JSON.parse(await readFile(file, 'ut
 async function persistRawArtifact(directory, name, evidence) { if (!evidence) return {}; const path=resolve(directory, name); await writeFile(path, evidence.body ?? ''); return { rawBackendResponse:basename(path), contentType:evidence.contentType ?? null }; }
 function relativeEvidence(directory, jsonFile, result) { return { resultFile:basename(jsonFile), rawBackendResponse:result?.inference?.artifacts?.rawBackendResponse ?? null, directory:basename(directory) }; }
 function addSkippedLevels(results, selectedFiles, reason='Not run because the response was unavailable or the model failed earlier') { const seen=new Set(results.map(result=>result.test)); return results.concat(selectedFiles.filter(file=>!seen.has(file)).map(file=>({ test:file, level:levelOf(file), result:'skipped', notes:reason, discrepancies:[], performance:null }))); }
-async function persistAggregate() { aggregate.updatedAt = new Date().toISOString(); const temporary=`${jsonPath}.tmp`; await writeFile(temporary, JSON.stringify(aggregate, null, 2)); await rename(temporary, jsonPath); }
+async function persistAggregate() { aggregate.updatedAt = new Date().toISOString(); await writeJsonAtomically(jsonPath, aggregate); }

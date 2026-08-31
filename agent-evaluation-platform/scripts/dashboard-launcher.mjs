@@ -25,7 +25,9 @@ export async function ensureDashboard({ resultsRoot, host, port, timeoutMs = 250
 async function health(url) {
   try {
     const response = await fetch(url, { signal:AbortSignal.timeout(300) });
-    return response.ok ? response.json() : null;
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body.status === 'ok' ? body : null;
   } catch { return null; }
 }
 function delay(milliseconds) { return new Promise(resolve => setTimeout(resolve, milliseconds)); }

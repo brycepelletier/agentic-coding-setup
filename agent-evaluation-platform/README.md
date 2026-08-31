@@ -76,13 +76,26 @@ Local fallback: http://localhost:3000
 
 The page receives WebSocket updates at `ws://agent.eval.local:3000/live` during
 warmup and streamed inference, normally refreshing stream progress every 100
-milliseconds. It then shows evaluation outcomes, discrepancies, performance,
-and weighted standings as they become available.
+milliseconds. The main page is a compact model-by-test matrix with one row per
+candidate and all qualification tests labeled `L1A`–`L4C`, then `L5`–`L8`.
+Each cell retains the full colored result text. The top-right toggle switches to
+the ranked candidate table. Candidate names link to detail pages containing
+per-test performance, discrepancies, the complete live output, and saved
+visible/reasoning/raw inference evidence. Live output follows new text while the
+viewer remains at the bottom; scrolling upward pauses following until the
+viewer returns to the bottom.
+
+Before a run exists, configured candidates and Levels 1–8 are shown with `Not
+Tested` badges. The **Shut down** button stops the dashboard gracefully. The
+server also stops itself after 15 minutes without a connected dashboard browser;
+active qualification processes continue independently and can start a fresh
+dashboard when needed.
 
 `agent.eval.local` must resolve to `127.0.0.1`. Add
 `127.0.0.1 agent.eval.local` to the machine's hosts file or use the printed
 `localhost` fallback. Use `--no-dashboard` to disable automatic startup. The
-defaults are versioned in [`config/dashboard.json`](config/dashboard.json).
+URL, refresh cadence, and idle shutdown defaults are versioned in
+[`config/dashboard.json`](config/dashboard.json).
 
 ## Layout
 

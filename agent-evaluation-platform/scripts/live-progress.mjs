@@ -1,4 +1,5 @@
-import { rename, rm, writeFile } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
+import { writeJsonAtomically } from './atomic-write.mjs';
 
 export function createLiveProgressWriter(file, context, { intervalMs = 100 } = {}) {
   let latest = null;
@@ -6,17 +7,25 @@ export function createLiveProgressWriter(file, context, { intervalMs = 100 } = {
   let pending = Promise.resolve();
   let visiblePreview = '';
   let reasoningPreview = '';
+  let visibleOutput = '';
+  let reasoningOutput = '';
   const persist = () => {
     timer = null;
     if (!latest) return;
     const snapshot = latest;
-    pending = pending.then(async () => { const temporary=`${file}.tmp`; await writeFile(temporary, JSON.stringify(snapshot, null, 2)); await rename(temporary, file); }).catch(() => {});
+    pending = pending.then(async () => { await writeJsonAtomically(file, snapshot); }).catch(() => {});
   };
   return {
     update(event = {}) {
-      if (event.visibleDelta) visiblePreview = `${visiblePreview}${event.visibleDelta}`.slice(-1000);
-      if (event.reasoningDelta) reasoningPreview = `${reasoningPreview}${event.reasoningDelta}`.slice(-500);
-      latest = { ...context, ...event, visiblePreview, reasoningPreview, updatedAt:new Date().toISOString() };
+      if (event.visibleDelta) {
+        visibleOutput += event.visibleDelta;
+        visiblePreview = `${visiblePreview}${event.visibleDelta}`.slice(-1000);
+      }
+      if (event.reasoningDelta) {
+        reasoningOutput += event.reasoningDelta;
+        reasoningPreview = `${reasoningPreview}${event.reasoningDelta}`.slice(-500);
+      }
+      latest = { ...context, ...event, visibleOutput, reasoningOutput, visiblePreview, reasoningPreview, updatedAt:new Date().toISOString() };
       if (!timer) timer = setTimeout(persist, intervalMs);
     },
     async flush(event = null) {

@@ -16,7 +16,8 @@ export async function loadDashboardConfig(overrides = {}) {
     fallbackUrl:fallback.toString().replace(/\/$/, ''),
     bindHost:overrides.bindHost ?? process.env.AGENT_EVAL_DASHBOARD_HOST ?? stored.bindHost ?? '127.0.0.1',
     port,
-    pollIntervalMs:Number(stored.pollIntervalMs ?? 750)
+    pollIntervalMs:positiveMilliseconds(stored.pollIntervalMs ?? 750, 'poll interval'),
+    idleShutdownMs:positiveMilliseconds(overrides.idleShutdownMs ?? process.env.AGENT_EVAL_DASHBOARD_IDLE_MS ?? stored.idleShutdownMs ?? 900000, 'idle shutdown interval')
   };
 }
 
@@ -24,4 +25,10 @@ function validPort(value) {
   const port = Number(value);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error(`Invalid dashboard port: ${value}`);
   return port;
+}
+
+function positiveMilliseconds(value, label) {
+  const milliseconds = Number(value);
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) throw new Error(`Invalid ${label}: ${value}`);
+  return milliseconds;
 }
