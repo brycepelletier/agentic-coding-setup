@@ -2,6 +2,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { showHelp, validateArguments, wantsHelp } from './cli-arguments.mjs';
 import { renderWeightedReport } from './weighted-scoring.mjs';
+import { canonicalId } from './test-definitions.mjs';
 
 const [, , input, ...args] = process.argv;
 const cliArgs = process.argv.slice(2);
@@ -45,15 +46,18 @@ if (output) await writeFile(output, markdown); else process.stdout.write(markdow
 
 function summaryRow(model) {
   const results = model.qualificationResults ?? [];
-  const completed = results.filter(result => !['skipped','invalid_environment'].includes(result.result));
+  const completed = results.filter(result => !['skipped','invalid_environment','blocked_by_prerequisite','execution_incomplete'].includes(result.result));
   const invalid = results.filter(result => result.result === 'invalid_environment');
+  const blocked = results.filter(result => result.result === 'blocked_by_prerequisite');
+  const incomplete = results.filter(result => result.result === 'execution_incomplete');
   const grouped = new Map();
   for (const result of completed) {
-    const current = grouped.get(result.level) ?? [];
+    const level = canonicalLevel(result);
+    const current = grouped.get(level) ?? [];
     current.push(result);
-    grouped.set(result.level, current);
+    grouped.set(level, current);
   }
-  const levelOrder = ['1','2','3','4','4A','5','6','7','8'];
+  const levelOrder = Array.from({length:13}, (_, index) => `L${index + 1}`);
   const passedLevels = levelOrder.filter(level => {
     const rows = grouped.get(level);
     return rows?.length && rows.every(row => ['pass','pass_with_discrepancy'].includes(row.result));
@@ -62,11 +66,20 @@ function summaryRow(model) {
   const contiguous = highest && levelOrder.slice(0, levelOrder.indexOf(highest)+1).every(level => passedLevels.includes(level));
   const firstFailure = completed.find(result => result.result === 'fail');
   const candidate = model.model ?? 'Offline response';
-  const highestLabel = highest ? `Level ${highest} ✅` : 'None ❌';
+  const highestLabel = highest ? `${highest} ✅` : 'None ❌';
   const warmupFailure = model.status === 'warmup_failed' ? `Warmup failed: ${model.warmup?.error ?? 'model did not become ready'}` : null;
-  const status = warmupFailure ?? (firstFailure ? failureText(firstFailure) : (invalid.length ? `Invalid environment: ${invalid.map(result=>`L${result.level}`).join(', ')} not comparable` : (highest ? (contiguous ? `Qualified through L${highest}` : `Passed selected levels: ${passedLevels.map(level => `L${level}`).join(', ')}`) : 'No completed qualification level')));
+  const status = warmupFailure ?? summaryStatus({firstFailure,incomplete,blocked,invalid,highest,contiguous,passedLevels});
   const performance = completed.map(result => result.performance).filter(Boolean);
   return `| ${candidate} | ${highestLabel} | ${average(performance, 'promptTokens')} | ${average(performance, 'outputTokens')} | ${average(performance, 'totalTokens')} | ${average(performance, 'tokensPerSecond', 2)} | ${averageTtft(completed)} | ${status} |`;
+}
+
+function summaryStatus({firstFailure,incomplete,blocked,invalid,highest,contiguous,passedLevels}) {
+  if (firstFailure) return failureText(firstFailure);
+  if (incomplete.length) return `Execution incomplete: ${incomplete.map(result=>canonicalLevel(result)).join(', ')}`;
+  if (blocked.length) return `Blocked by prerequisite: ${blocked.map(result=>canonicalLevel(result)).join(', ')}`;
+  if (invalid.length) return `Invalid environment: ${invalid.map(result=>canonicalLevel(result)).join(', ')} not comparable`;
+  if (!highest) return 'No completed qualification level';
+  return contiguous?`Qualified through ${highest}`:`Passed selected levels: ${passedLevels.join(', ')}`;
 }
 
 function compareModels(left, right) {
@@ -79,14 +92,15 @@ function compareModels(left, right) {
 }
 
 function rankingValues(model) {
-  const completed = (model.qualificationResults ?? []).filter(result => !['skipped','invalid_environment'].includes(result.result));
+  const completed = (model.qualificationResults ?? []).filter(result => !['skipped','invalid_environment','blocked_by_prerequisite','execution_incomplete'].includes(result.result));
   const grouped = new Map();
   for (const result of completed) {
-    const current = grouped.get(result.level) ?? [];
+    const level = canonicalLevel(result);
+    const current = grouped.get(level) ?? [];
     current.push(result);
-    grouped.set(result.level, current);
+    grouped.set(level, current);
   }
-  const levelOrder = ['1','2','3','4','4A','5','6','7','8'];
+  const levelOrder = Array.from({length:13}, (_, index) => `L${index + 1}`);
   const passedLevels = levelOrder.filter(level => {
     const rows = grouped.get(level);
     return rows?.length && rows.every(row => ['pass','pass_with_discrepancy'].includes(row.result));
@@ -120,4 +134,9 @@ function failureText(result) {
   const discrepancy = result.discrepancies?.[0];
   if (discrepancy?.question) return `L${result.level}: Q${discrepancy.question} expected ${discrepancy.expected}, observed ${discrepancy.observed}`;
   return `L${result.level}: ${result.notes || 'qualification failure'}`;
+}
+function canonicalLevel(result) {
+  const fromTest = canonicalId(result.testId ?? result.test);
+  if (fromTest) return fromTest;
+  return ({'1':'L1','2':'L2','3':'L5','4':'L7','4A':'L9','5':'L10','6':'L11','7':'L12','8':'L13'}[String(result.level ?? '').toUpperCase()] ?? String(result.level ?? ''));
 }

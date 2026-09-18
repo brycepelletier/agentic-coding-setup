@@ -1,6 +1,8 @@
 {
-  "schemaVersion": "1.0.0",
-  "executionVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "executionVersion": "1.1.0",
+  "turnTimeoutMs": 300000,
+  "maxAgentTurns": 32,
   "fixtureRepositories": [
     {
       "name": "agent-env-mcp",
@@ -23,13 +25,32 @@
       "commit": "7efbc3fe4ac9d1e152e73710d80cc0d37b49f153"
     }
   ],
+  "referenceArtifacts": {
+    "documentation-status": "reference/documentation-status.json",
+    "level-5": "reference/level-5-evidence.json",
+    "level-6": "reference/level-6-evidence.json",
+    "level-7": "reference/level-7-plan.json"
+  },
+  "taskFixtures": {
+    "telemetry-normalizer-v1": {
+      "source": "../fixtures/tasks/telemetry-normalizer",
+      "workspacePath": "task/telemetry-normalizer",
+      "permittedWrites": ["src/normalize-metrics.mjs"],
+      "visibleTestCommand": ["node", "--test"],
+      "hiddenAcceptance": "telemetry-normalizer-v1"
+    }
+  },
   "toolProfiles": {
-    "repository-read-only": ["list_directory", "read_file", "search_files", "run_command"]
+    "repository-read-only": ["list_directory", "read_file", "search_files", "run_command"],
+    "evidence-only": [],
+    "planning-read-only": ["list_directory", "read_file", "search_files", "run_test"],
+    "implementation-bounded": ["list_directory", "read_file", "search_files", "write_file", "run_test"]
   },
   "tests": {
-    "level-5-repository-discovery.md": {
+    "L10": {
       "mode": "agent-execution",
       "fixtures": "all",
+      "referenceArtifacts": ["documentation-status"],
       "filesystemAccess": "read-only",
       "commandExecution": "bounded-read-only",
       "toolProfile": "repository-read-only",
@@ -39,43 +60,51 @@
       "priorEvidence": null,
       "authorizedImplementation": null
     },
-    "level-6-architecture-reconstruction.md": {
+    "L11": {
       "mode": "agent-execution",
-      "fixtures": "all",
-      "filesystemAccess": "read-only",
-      "commandExecution": "bounded-read-only",
-      "toolProfile": "repository-read-only",
+      "fixtures": "none",
+      "filesystemAccess": "frozen-evidence-only",
+      "commandExecution": "none",
+      "toolProfile": "evidence-only",
       "repositoryMutation": "prohibited",
-      "gitAccess": "local-read-only",
+      "gitAccess": "none",
       "githubAccess": "not-required",
-      "priorEvidence": "level-5-repository-discovery.md",
-      "authorizedImplementation": null
-    },
-    "level-7-planning-only.md": {
-      "mode": "agent-execution",
-      "fixtures": "all",
-      "filesystemAccess": "read-only",
-      "commandExecution": "bounded-read-only",
-      "toolProfile": "repository-read-only",
-      "repositoryMutation": "prohibited",
-      "gitAccess": "local-read-only",
-      "githubAccess": "not-required",
-      "priorEvidence": "level-6-architecture-reconstruction.md",
+      "priorEvidence": "L10",
       "authorizedImplementation": null,
-      "task": null
+      "referenceFallback": "level-5",
+      "evidenceOnly": true
     },
-    "level-8-controlled-implementation.md": {
+    "L12": {
       "mode": "agent-execution",
-      "fixtures": "all",
-      "filesystemAccess": "reference-read-only-and-authorized-write",
-      "commandExecution": "bounded",
-      "toolProfile": null,
+      "fixtures": "none",
+      "taskFixture": "telemetry-normalizer-v1",
+      "taskMode": "read-only",
+      "filesystemAccess": "read-only",
+      "commandExecution": "bounded-read-only",
+      "toolProfile": "planning-read-only",
+      "repositoryMutation": "prohibited",
+      "gitAccess": "harness-verification-only",
+      "githubAccess": "not-required",
+      "priorEvidence": "L11",
+      "authorizedImplementation": null,
+      "referenceFallback": "level-6",
+      "task": "Plan implementation of normalizeMetrics in task/telemetry-normalizer/src/normalize-metrics.mjs according to ISSUE.md without modifying files."
+    },
+    "L13": {
+      "mode": "agent-execution",
+      "fixtures": "none",
+      "taskFixture": "telemetry-normalizer-v1",
+      "taskMode": "disposable-writable",
+      "filesystemAccess": "bounded-write",
+      "commandExecution": "bounded-tests",
+      "toolProfile": "implementation-bounded",
       "repositoryMutation": "authorized-implementation-only",
-      "gitAccess": "local-only",
-      "githubAccess": "prohibited-without-delegation",
-      "priorEvidence": "level-7-planning-only.md",
-      "authorizedImplementation": null,
-      "task": null
+      "gitAccess": "harness-verification-only",
+      "githubAccess": "prohibited",
+      "priorEvidence": "L12",
+      "authorizedImplementation": "task/telemetry-normalizer",
+      "referenceFallback": "level-7",
+      "task": "Implement normalizeMetrics in task/telemetry-normalizer/src/normalize-metrics.mjs according to ISSUE.md."
     }
   }
 }

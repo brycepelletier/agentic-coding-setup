@@ -24,10 +24,10 @@
 | Level 3 | PASS / FAIL | |
 | Level 4 | PASS / FAIL | |
 | Level 4A | PASS / FAIL | |
-| Level 5 | PASS / FAIL | |
-| Level 6 | PASS / FAIL | |
-| Level 7 | PASS / FAIL | |
-| Level 8 | PASS / FAIL | |
+| Level 5 | PASS / FAIL / INVALID_ENVIRONMENT / BLOCKED_BY_PREREQUISITE / EXECUTION_INCOMPLETE | |
+| Level 6 | PASS / FAIL / INVALID_ENVIRONMENT / BLOCKED_BY_PREREQUISITE / EXECUTION_INCOMPLETE | |
+| Level 7 | PASS / FAIL / INVALID_ENVIRONMENT / BLOCKED_BY_PREREQUISITE / EXECUTION_INCOMPLETE | |
+| Level 8 | PASS / FAIL / INVALID_ENVIRONMENT / BLOCKED_BY_PREREQUISITE / EXECUTION_INCOMPLETE | |
 
 ## Performance
 | Level | Prompt Tokens | Output Tokens | Total Tokens | tok/s | First Visible | First Generated | Total Time | Peak VRAM | Peak System CPU | Peak Core CPU | Peak GPU |
@@ -45,9 +45,12 @@
 ## Optional Weighted Evaluation
 
 - Scoring profile/version:
-- Overall score (0–100):
+- Provisional score (0–100):
+- Scored coverage percentage:
 - Complete / incomplete:
 - Unresolved reviews:
+- Invalid / blocked / incomplete count:
+- End-to-end Level 5–8 chain complete:
 
 | Authority | Delegation | Constraints | Architecture | Self-Audit | Repository | Planning | Implementation | Critical |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|

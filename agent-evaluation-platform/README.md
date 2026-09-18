@@ -65,6 +65,13 @@ remain under `results/<run-id>/`; `--clear` removes prior run folders only when
 explicitly requested. Performance remains informational and is not included in
 the current suitability score.
 
+Levels 5–8 use controlled agent execution. Their distinct non-model outcomes
+are `invalid_environment`, `blocked_by_prerequisite`, and
+`execution_incomplete`. Full `--force --weighted` runs may use a verified
+reference artifact to isolate a later competency after candidate-stage failure;
+reports identify fallback provenance, scored coverage, and incomplete chain
+status. See [agent execution contracts](config/EXECUTION.md).
+
 ## Live dashboard
 
 Batch runs automatically start or reuse the dashboard and print this directly

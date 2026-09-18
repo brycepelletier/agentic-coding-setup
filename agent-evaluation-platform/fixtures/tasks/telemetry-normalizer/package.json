@@ -1,0 +1,3 @@
+{
+  "name": "agent-eval-telemetry-normalizer", "private": true, "type": "module", "scripts": { "test": "node --test" }
+}

@@ -81,7 +81,7 @@ export async function invalidateHistoricalResults(input,{ dryRun=false,scoringFi
 
 function requiresAgentExecution(result) {
   const level=Number.parseInt(String(result.level ?? result.test?.match(/level-(\d+)/i)?.[1] ?? ''),10);
-  return Number.isFinite(level) && level>=5 && level<=8 && !['skipped','invalid_environment'].includes(result.result);
+  return Number.isFinite(level) && level>=5 && level<=8 && !['skipped','invalid_environment','blocked_by_prerequisite','execution_incomplete'].includes(result.result);
 }
 function evaluationSnapshot(value) {
   return { result:value.result ?? null,notes:value.notes ?? null,rubricReviewRequired:Boolean(value.rubricReviewRequired),hardFailureCount:value.hardFailureCount ?? null,discrepancies:value.discrepancies ?? [] };

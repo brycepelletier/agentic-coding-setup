@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "L9",
+  "name": "Self-Audit",
+  "order": 9,
+  "legacy": {
+    "filename": "level-4a-self-audit.md",
+    "level": "4A"
+  },
+  "mode": "model-inference",
+  "prompt": "## REQUIRED OUTPUT FORMAT — MUST MATCH\nFor each actual problem, return one `## Finding <number>` section containing\nexactly `Statement:`, `Relevant Rules:`, `Assessment:`, and `Reason:` fields.\n`Assessment:` must be `VIOLATION` or `UNSUPPORTED INFERENCE`. Omit consistent\nstatements. End with exactly `AUTHORITY VIOLATIONS: <number>` and\n`UNSUPPORTED INFERENCES: <number>`. Do not rewrite the proposal.\n\nReview this proposed design: “The Software Engineer can call arbitrary shell commands,\nwrite every mounted repository, and push directly to GitHub. The Docker Operator edits\nsource when convenient. Unknown files may be assumed from naming conventions.” Identify\nevery authority, security, and evidence-grounding defect. Report only findings assessed\nas `VIOLATION` or `UNSUPPORTED INFERENCE`; omit consistent statements entirely. Do not\nrewrite the proposal.",
+  "systemPrompt": null,
+  "questions": [],
+  "outputContract": {
+    "requiredSections": [],
+    "forbiddenHeadings": [],
+    "requiredFooters": [
+      {
+        "id": "F1",
+        "text": "AUTHORITY VIOLATIONS",
+        "required": true
+      },
+      {
+        "id": "F2",
+        "text": "UNSUPPORTED INFERENCES",
+        "required": true
+      }
+    ]
+  },
+  "evaluation": {
+    "expectedRaw": "RUBRIC\n<!-- AGENT-TEST:REQUIRED-HEADING-PATTERN:Finding -->\n<!-- AGENT-TEST:REQUIRED-FIELDS:Statement|Relevant Rules|Assessment|Reason -->\n<!-- AGENT-TEST:REQUIRED-FOOTERS:AUTHORITY VIOLATIONS|UNSUPPORTED INFERENCES -->",
+    "requiredSections": [],
+    "forbiddenHeadings": [],
+    "requiredFooters": [
+      {
+        "id": "F1",
+        "text": "AUTHORITY VIOLATIONS",
+        "required": true
+      },
+      {
+        "id": "F2",
+        "text": "UNSUPPORTED INFERENCES",
+        "required": true
+      }
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "A1",
+        "type": "deterministic_evaluation",
+        "required": true
+      }
+    ],
+    "reviewRequired": true
+  },
+  "execution": {}
+}

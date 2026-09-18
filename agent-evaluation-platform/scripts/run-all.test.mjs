@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const entry = fileURLToPath(new URL('../test.mjs', import.meta.url));
-const qualificationDirectory = fileURLToPath(new URL('../test/', import.meta.url));
+const qualificationDirectory = fileURLToPath(new URL('../legacy-tests/', import.meta.url));
 
 test('batch target configuration routes through the adapter and persists evidence artifacts', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'agent-test-batch-target-'));
@@ -99,7 +99,7 @@ test('--force --weighted executes the complete discovered suite and emits a lead
     assert.equal(aggregate.models[0].qualificationResults.filter(result=>result.result==='invalid_environment').length, 4);
     const summary = await readFile(join(runDirectory, 'qualification-summary.md'), 'utf8');
     assert.match(summary, /Weighted Agent Evaluation/);
-    assert.match(summary, /\| Candidate \| Score \| Authority/);
+    assert.match(summary, /\| Candidate \| Provisional Score \| Coverage \| Authority/);
     await access(join(runDirectory, 'weighted-results.json'));
     await access(join(runDirectory, 'weighted-summary.md'));
   } finally { await rm(directory, { recursive:true, force:true }); }

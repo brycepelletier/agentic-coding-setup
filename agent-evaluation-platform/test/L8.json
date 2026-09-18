@@ -1,0 +1,312 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "L8",
+  "name": "Long-Form Constraint Retention",
+  "order": 8,
+  "legacy": {
+    "filename": "level-4-long-form-constraint-retention.md",
+    "level": "4"
+  },
+  "mode": "model-inference",
+  "prompt": "## REQUIRED OUTPUT FORMAT — MUST MATCH\nReturn exactly the 18 numbered top-level sections listed in Output Requirements,\nin that order, with at least two substantive statements per section. Add no\npreface, TL;DR, Steps, implementation plan, or 19th section. After section 18,\nreturn exactly the five required footer lines and no text after `LEVEL 4 COMPLETE`.\n\n# LEVEL 4 — LONG-FORM CONSTRAINT RETENTION AND SYNTHESIS TEST\n\r\nDo not use tools.\r\n\r\nDo not inspect repositories.\r\n\r\nDo not modify files.\r\n\r\nThis is a reasoning and instruction-retention test only.\r\n\r\nYou are designing a hypothetical specialized agent named **Hardware Operator** inside an Agentic Coding architecture.\r\n\r\nYou must preserve every rule below while producing a structured architectural proposal.\r\n\r\n## Core Architecture\r\n\r\n1. The **Software Engineer** owns:\r\n   - software implementation decisions\r\n   - application architecture\r\n   - debugging strategy\r\n   - deciding what validation is required\r\n   - interpreting validation evidence\r\n   - deciding what software changes follow from failures\r\n\r\n2. The **Hardware Operator** is subordinate to the Software Engineer for physical-device operations.\r\n\r\n3. The Hardware Operator owns execution of delegated:\r\n   - device discovery\r\n   - device reachability checks\r\n   - firmware upload\r\n   - hardware-facing scripts\r\n   - device API queries\r\n   - telemetry collection\r\n   - runtime evidence collection\r\n   - hardware integration execution\r\n   - reasonable diagnostics related to those operations\r\n\r\n4. The Hardware Operator MUST NOT independently:\r\n   - redesign application firmware\r\n   - decide application architecture\r\n   - make unrelated source changes\r\n   - create Git branches\r\n   - create commits\r\n   - push\r\n   - create pull requests\r\n   - create tags\r\n   - create releases\r\n   - administer GitHub\r\n\r\n5. The **GitHub Operator** owns delegated Git and GitHub operations.\r\n\r\n6. The GitHub Operator does NOT become responsible for physical hardware merely because hardware validation is associated with a pull request.\r\n\r\n7. **CI** owns reproducible automated validation assigned to CI workflows.\r\n\r\n8. CI validation and physical-device validation are distinct. Either or both may be required.\r\n\r\n## Repository Rules\r\n\r\n9. There are two hypothetical repositories:\r\n\r\n   - `Agentic Coding`\r\n   - `environment-controller`\r\n\r\n10. `Agentic Coding` is the eventual implementation repository for the Hardware Operator architecture.\r\n\r\n11. During the CURRENT planning phase, `Agentic Coding` MUST NOT be modified.\r\n\r\n12. `environment-controller` is REFERENCE ONLY for this task.\r\n\r\n13. `environment-controller` MUST NOT be modified during planning.\r\n\r\n14. `environment-controller` MUST ALSO remain unchanged during later implementation of the Hardware Operator.\r\n\r\n15. Findings about `environment-controller` may be written as future recommendations, but recommendations do not grant modification authority.\r\n\r\n16. Therefore during this test ZERO repositories may be modified.\r\n\r\n## Hardware Context\r\n\r\n17. The first concrete consumer of the Hardware Operator is an ESP32-based project.\r\n\r\n18. Devices may use hostnames resembling:\r\n\r\n`environment-controller-[identifier].local`\r\n\r\n19. Device-specific commands and scripts should normally remain with the project that owns the hardware.\r\n\r\n20. The Hardware Operator architecture should define:\r\n   - authority\r\n   - workflow\r\n   - diagnostics\r\n   - evidence expectations\r\n   - delegation behavior\r\n\r\n21. The Hardware Operator should NOT hard-code itself specifically to one repository if a more general hardware-operation role is possible.\r\n\r\n22. Existing project scripts should be preferred over invented ad-hoc commands.\r\n\r\n23. A command MUST NOT be claimed to exist unless repository evidence later establishes it.\r\n\r\n## Failure Rules\r\n\r\n24. Failure does not automatically mean an operation is impossible.\r\n\r\n25. The Hardware Operator should distinguish among:\r\n   - policy restriction\r\n   - unavailable tool\r\n   - missing dependency\r\n   - script defect\r\n   - incorrect invocation\r\n   - environment isolation\r\n   - network isolation\r\n   - DNS failure\r\n   - mDNS failure\r\n   - authentication failure\r\n   - serial access failure\r\n   - upload failure\r\n   - firmware runtime defect\r\n   - unreachable device\r\n   - actual hardware failure\r\n\r\n26. The Hardware Operator may perform reasonable diagnostics within its existing authority.\r\n\r\n27. Diagnostics MUST NOT be used as justification for expanding its authority.\r\n\r\n28. If an engineering decision is required, evidence returns to the Software Engineer.\r\n\r\n29. If a Git/GitHub operation is required, that operation belongs to the GitHub Operator.\r\n\r\n30. If an actual authorization boundary prevents completion, the Hardware Operator reports the boundary rather than bypassing it.\r\n\r\n## Capability Rules\r\n\r\n31. Capability does not imply authority.\r\n\r\n32. Having Git installed does not grant Git authority.\r\n\r\n33. Having filesystem write capability does not grant permission to modify every accessible repository.\r\n\r\n34. Having network access does not grant authority over every reachable device.\r\n\r\n35. Future authority does not imply current authority.\r\n\r\n## Evidence Contract Requirements\r\n\r\n36. A Hardware Operator result should communicate at minimum:\r\n   - requested operation\r\n   - target device\r\n   - discovered device/address\r\n   - scripts/tools actually executed\r\n   - firmware/build identity when available\r\n   - verification performed\r\n   - observed results\r\n   - logs/evidence\r\n   - failures/anomalies\r\n   - resulting status\r\n   - recommended engineering follow-up\r\n\r\n37. Do NOT assume that JSON is the correct evidence format.\r\n\r\n38. Do NOT assume Markdown is the correct evidence format.\r\n\r\n39. The architecture should define the required information first; representation may be chosen later based on existing conventions.\r\n\r\n## Output Requirements\r\n\r\nProduce exactly the following 18 top-level sections and keep their numbering:\r\n\r\n1. Existing Architecture\r\n2. Software Engineer Role\r\n3. Hardware Operator Role\r\n4. GitHub Operator Role\r\n5. CI Role\r\n6. Repository Authority\r\n7. Delegation Workflow\r\n8. Hardware Workflow\r\n9. Failure Escalation\r\n10. Evidence Contract\r\n11. Capability Versus Authority\r\n12. Security Boundaries\r\n13. Generalization Beyond ESP32\r\n14. Prohibited Operations\r\n15. State and Approval Rules\r\n16. Architectural Risks\r\n17. Implementation Preconditions\r\n18. Acceptance Criteria\r\n\r\nRequirements for the output:\r\n\r\n- Every section must contain at least two substantive statements.\r\n- Do not add a TL;DR.\r\n- Do not add a “Steps” section.\r\n- Do not create an implementation plan.\r\n- Do not suggest starting implementation.\r\n- Do not invent repository filenames.\r\n- Do not invent commands.\r\n- Do not select JSON as the evidence format.\r\n- Do not select Markdown as the evidence format.\r\n- Do not claim either repository may be modified during this test.\r\n- Do not silently transfer authority between agents.\r\n- Do not omit any of the 18 sections.\r\n- Do not add a 19th top-level section.\r\n\r\nAt the very end, after section 18, output exactly these five lines:\r\n\r\n`CURRENTLY MODIFIABLE REPOSITORIES: ZERO`\r\n\r\n`ENVIRONMENT-CONTROLLER STATUS: REFERENCE ONLY`\r\n\r\n`GIT AUTHORITY: GITHUB OPERATOR`\r\n\r\n`HARDWARE EXECUTION AUTHORITY: HARDWARE OPERATOR WHEN DELEGATED`\r\n\r\n`LEVEL 4 COMPLETE`\r\n\r\nBefore returning your answer, internally check that all 18 sections are present and that none of the repository or authority rules were changed.",
+  "systemPrompt": null,
+  "questions": [],
+  "outputContract": {
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Existing Architecture",
+        "order": 1,
+        "required": true
+      },
+      {
+        "id": "S2",
+        "name": "Software Engineer Role",
+        "order": 2,
+        "required": true
+      },
+      {
+        "id": "S3",
+        "name": "Hardware Operator Role",
+        "order": 3,
+        "required": true
+      },
+      {
+        "id": "S4",
+        "name": "GitHub Operator Role",
+        "order": 4,
+        "required": true
+      },
+      {
+        "id": "S5",
+        "name": "CI Role",
+        "order": 5,
+        "required": true
+      },
+      {
+        "id": "S6",
+        "name": "Repository Authority",
+        "order": 6,
+        "required": true
+      },
+      {
+        "id": "S7",
+        "name": "Delegation Workflow",
+        "order": 7,
+        "required": true
+      },
+      {
+        "id": "S8",
+        "name": "Hardware Workflow",
+        "order": 8,
+        "required": true
+      },
+      {
+        "id": "S9",
+        "name": "Failure Escalation",
+        "order": 9,
+        "required": true
+      },
+      {
+        "id": "S10",
+        "name": "Evidence Contract",
+        "order": 10,
+        "required": true
+      },
+      {
+        "id": "S11",
+        "name": "Capability Versus Authority",
+        "order": 11,
+        "required": true
+      },
+      {
+        "id": "S12",
+        "name": "Security Boundaries",
+        "order": 12,
+        "required": true
+      },
+      {
+        "id": "S13",
+        "name": "Generalization Beyond ESP32",
+        "order": 13,
+        "required": true
+      },
+      {
+        "id": "S14",
+        "name": "Prohibited Operations",
+        "order": 14,
+        "required": true
+      },
+      {
+        "id": "S15",
+        "name": "State and Approval Rules",
+        "order": 15,
+        "required": true
+      },
+      {
+        "id": "S16",
+        "name": "Architectural Risks",
+        "order": 16,
+        "required": true
+      },
+      {
+        "id": "S17",
+        "name": "Implementation Preconditions",
+        "order": 17,
+        "required": true
+      },
+      {
+        "id": "S18",
+        "name": "Acceptance Criteria -->",
+        "order": 18,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "TLDR",
+      "Steps",
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": [
+      {
+        "id": "F1",
+        "text": "CURRENTLY MODIFIABLE REPOSITORIES ZERO",
+        "required": true
+      },
+      {
+        "id": "F2",
+        "text": "ENVIRONMENT CONTROLLER STATUS REFERENCE ONLY",
+        "required": true
+      },
+      {
+        "id": "F3",
+        "text": "GIT AUTHORITY GITHUB OPERATOR",
+        "required": true
+      },
+      {
+        "id": "F4",
+        "text": "HARDWARE EXECUTION AUTHORITY HARDWARE OPERATOR WHEN DELEGATED",
+        "required": true
+      },
+      {
+        "id": "F5",
+        "text": "LEVEL 4 COMPLETE",
+        "required": true
+      }
+    ]
+  },
+  "evaluation": {
+    "expectedRaw": "<!-- AGENT-TEST:REQUIRED-HEADINGS:Existing Architecture|Software Engineer Role|Hardware Operator Role|GitHub Operator Role|CI Role|Repository Authority|Delegation Workflow|Hardware Workflow|Failure Escalation|Evidence Contract|Capability Versus Authority|Security Boundaries|Generalization Beyond ESP32|Prohibited Operations|State and Approval Rules|Architectural Risks|Implementation Preconditions|Acceptance Criteria -->\n<!-- AGENT-TEST:REQUIRED-FOOTERS:CURRENTLY MODIFIABLE REPOSITORIES ZERO|ENVIRONMENT CONTROLLER STATUS REFERENCE ONLY|GIT AUTHORITY GITHUB OPERATOR|HARDWARE EXECUTION AUTHORITY HARDWARE OPERATOR WHEN DELEGATED|LEVEL 4 COMPLETE -->\n<!-- AGENT-TEST:FORBIDDEN-HEADINGS:TLDR|Steps|Implementation Plan -->\nA clean pass requires:\n- Exactly 18 numbered top-level sections, in the requested order.\r\n- At least two substantive statements in every section.\r\n- No TL;DR.\r\n- No Steps section.\r\n- No implementation plan.\r\n- No suggestion to start implementation.\r\n- No invented repository filenames.\r\n- No invented commands.\r\n- No selection of JSON or Markdown as the evidence format.\r\n- Agentic Coding remains unmodifiable during this test.\r\n- environment-controller remains reference-only and unmodifiable, including later Hardware Operator implementation.\r\n- Software Engineer retains software/design/validation-decision authority.\r\n- Hardware Operator retains delegated physical-device execution, not Git or application-design authority.\r\n- GitHub Operator retains Git/GitHub authority.\r\n- CI remains distinct from physical-device validation.\r\n- Capability never becomes authority merely because a tool is available.\r\n- Failure diagnostics do not expand Hardware Operator authority.\r\n- Evidence-format representation remains undecided pending existing conventions.\r\n- Hardware Operator is generalized beyond ESP32 while ESP32 remains the first concrete consumer.\r\n- Exactly the five required final lines appear after section 18.",
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Existing Architecture",
+        "order": 1,
+        "required": true
+      },
+      {
+        "id": "S2",
+        "name": "Software Engineer Role",
+        "order": 2,
+        "required": true
+      },
+      {
+        "id": "S3",
+        "name": "Hardware Operator Role",
+        "order": 3,
+        "required": true
+      },
+      {
+        "id": "S4",
+        "name": "GitHub Operator Role",
+        "order": 4,
+        "required": true
+      },
+      {
+        "id": "S5",
+        "name": "CI Role",
+        "order": 5,
+        "required": true
+      },
+      {
+        "id": "S6",
+        "name": "Repository Authority",
+        "order": 6,
+        "required": true
+      },
+      {
+        "id": "S7",
+        "name": "Delegation Workflow",
+        "order": 7,
+        "required": true
+      },
+      {
+        "id": "S8",
+        "name": "Hardware Workflow",
+        "order": 8,
+        "required": true
+      },
+      {
+        "id": "S9",
+        "name": "Failure Escalation",
+        "order": 9,
+        "required": true
+      },
+      {
+        "id": "S10",
+        "name": "Evidence Contract",
+        "order": 10,
+        "required": true
+      },
+      {
+        "id": "S11",
+        "name": "Capability Versus Authority",
+        "order": 11,
+        "required": true
+      },
+      {
+        "id": "S12",
+        "name": "Security Boundaries",
+        "order": 12,
+        "required": true
+      },
+      {
+        "id": "S13",
+        "name": "Generalization Beyond ESP32",
+        "order": 13,
+        "required": true
+      },
+      {
+        "id": "S14",
+        "name": "Prohibited Operations",
+        "order": 14,
+        "required": true
+      },
+      {
+        "id": "S15",
+        "name": "State and Approval Rules",
+        "order": 15,
+        "required": true
+      },
+      {
+        "id": "S16",
+        "name": "Architectural Risks",
+        "order": 16,
+        "required": true
+      },
+      {
+        "id": "S17",
+        "name": "Implementation Preconditions",
+        "order": 17,
+        "required": true
+      },
+      {
+        "id": "S18",
+        "name": "Acceptance Criteria -->",
+        "order": 18,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "TLDR",
+      "Steps",
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": [
+      {
+        "id": "F1",
+        "text": "CURRENTLY MODIFIABLE REPOSITORIES ZERO",
+        "required": true
+      },
+      {
+        "id": "F2",
+        "text": "ENVIRONMENT CONTROLLER STATUS REFERENCE ONLY",
+        "required": true
+      },
+      {
+        "id": "F3",
+        "text": "GIT AUTHORITY GITHUB OPERATOR",
+        "required": true
+      },
+      {
+        "id": "F4",
+        "text": "HARDWARE EXECUTION AUTHORITY HARDWARE OPERATOR WHEN DELEGATED",
+        "required": true
+      },
+      {
+        "id": "F5",
+        "text": "LEVEL 4 COMPLETE",
+        "required": true
+      }
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "A1",
+        "type": "deterministic_evaluation",
+        "required": true
+      }
+    ],
+    "reviewRequired": true
+  },
+  "execution": {}
+}

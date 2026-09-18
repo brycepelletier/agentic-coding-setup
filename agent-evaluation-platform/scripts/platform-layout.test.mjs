@@ -8,10 +8,10 @@ const testDirectory = fileURLToPath(new URL('../test/', import.meta.url));
 const targetExample = fileURLToPath(new URL('../config/targets/targets.example.json', import.meta.url));
 
 test('discovers all qualification tests from the test directory', async () => {
-  const files = (await readdir(testDirectory)).filter(file => /^level-.*\.md$/i.test(file));
+  const files = (await readdir(testDirectory)).filter(file => /^L(?:[1-9]|1[0-3])\.json$/i.test(file));
   assert.equal(files.length, 13);
-  assert.ok(files.includes('level-1-basic-authority.md'));
-  assert.ok(files.includes('level-8-controlled-implementation.md'));
+  assert.ok(files.includes('L1.json'));
+  assert.ok(files.includes('L13.json'));
 });
 
 test('loads target definitions from the config targets directory', async () => {

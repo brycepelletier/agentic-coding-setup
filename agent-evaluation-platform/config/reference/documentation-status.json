@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "Deterministic documentation-status evidence for Level 5",
+  "authority": "This manifest is qualification-suite evidence pinned to the fixture commits in execution-contracts.json.",
+  "repositories": {
+    "agent-env-mcp": { "current": ["README.md", "package.json"], "obsolete": [], "statement": "No obsolete documentation is present in this pinned fixture." },
+    "docker-app-mcp": { "current": ["README.md", "package.json"], "obsolete": [], "statement": "No obsolete documentation is present in this pinned fixture." },
+    "github-app-mcp": { "current": ["README.md", "package.json"], "obsolete": [], "statement": "No obsolete documentation is present in this pinned fixture." },
+    "web-research-mcp": { "current": ["README.md", "package.json"], "obsolete": [], "statement": "No obsolete documentation is present in this pinned fixture." }
+  }
+}

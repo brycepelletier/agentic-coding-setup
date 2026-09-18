@@ -33,7 +33,10 @@ grant unauthorized authority remain hard failures.
 Levels 5–8 are not text-only tests. They cross the controlled agent-execution
 boundary described in [../config/EXECUTION.md](../config/EXECUTION.md). Missing
 required fixtures, tools, prior evidence, or task authority produces
-`invalid_environment`, not model failure or review-required status.
+`invalid_environment`, not model failure or review-required status. A valid
+environment with missing candidate-stage evidence is `blocked_by_prerequisite`.
+An execution that started but did not reach a final answer is
+`execution_incomplete`, with its termination and partial tool evidence saved.
 
 Level 3 Q31 is a conditional self-audit rather than a static answer. If Q1–Q30
 have no hard mismatch, Q31 must report `LEVEL 3 CONSISTENT`. If any prior answer
@@ -180,7 +183,11 @@ addition to the unchanged qualification evidence and appends the weighted
 leaderboard to `qualification-summary.md`. It does not imply `--force`.
 Consequently, a fail-fast weighted run is marked incomplete and skipped tests
 are not treated as incorrect answers. Use `--force --weighted` for a full-suite
-candidate comparison. Scoring configuration, mappings, risk rules, review
+candidate comparison. That mode uses verified reference fallback when a prior
+candidate Level 5–7 artifact is invalid, records `evidenceSource` and
+`dependencyFallback`, scores only the isolated competency, and leaves the
+end-to-end chain incomplete. Weighted output shows provisional score, scored
+coverage, unresolved reviews, and invalid/blocked/incomplete counts. Scoring configuration, mappings, risk rules, review
 sidecars, and examples are documented in [../config/SCORING.md](../config/SCORING.md).
 
 ### `test.mjs single`
@@ -220,6 +227,7 @@ With neither `--url` nor `--response`, the script prints the extracted prompt.
 | `test.mjs report` | `RUN.json [REPORT.md]` | Render detailed per-model tables. |
 | `test.mjs score` | `RUN_DIRECTORY [--scoring FILE]` | Rescore persisted evidence without inference. |
 | `test.mjs audit-results` | `[RESULTS_DIRECTORY\|RUN_DIRECTORY\|RUN.json] [--dry-run]` | Mark unsupported historical Level 5–8 results invalid without changing saved responses. |
+| `test.mjs audit-execution` | `RUN_DIRECTORY\|RUN.json [--dry-run]` | Reclassify preserved incomplete and prerequisite-blocked agent evidence without inference. |
 | `test.mjs dashboard` | `[--results DIR] [--targets FILE] [--host HOST] [--port PORT] [--idle-timeout-ms MS]` | Run the dashboard server in the foreground. |
 | `test.mjs metrics` | `[OUTPUT.json]` | Collect host/LMS/GPU telemetry until interrupted. |
 

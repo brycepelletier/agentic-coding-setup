@@ -1,0 +1,18 @@
+{
+  "targets": [
+	{
+		"model": "qwen/qwen3.6-35b-a3b",
+		"name": "Qwen Qwen3",
+		"protocol": "openai-chat",
+		"baseUrl": "http://localhost:8080/v1",
+		"path": "/chat/completions"
+	},
+	{
+		"model": "google/gemma-4-26b-a4b",
+		"name": "Google Gemma4",
+		"protocol": "openai-chat",
+		"baseUrl": "http://localhost:8080/v1",
+		"path": "/chat/completions"
+	}
+  ]
+}

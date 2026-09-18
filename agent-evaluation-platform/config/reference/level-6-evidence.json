@@ -1,0 +1,5 @@
+{
+  "schemaVersion": "1.0.0", "artifactType": "canonical-level-6-evidence", "verified": true,
+  "provenance": { "source": "level-5-evidence.json" },
+  "summary": "The four pinned repositories are bounded MCP servers with package.json-declared Node entry points. agent-env-mcp owns containerized engineering environments, docker-app-mcp bounded Docker operations, github-app-mcp bounded Git/GitHub operations, and web-research-mcp credential-free public research. Exact claims trace to paths in the Level 5 artifact."
+}

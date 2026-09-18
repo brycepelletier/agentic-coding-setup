@@ -5,12 +5,12 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const evaluator = fileURLToPath(new URL('./evaluate-result.mjs', import.meta.url));
-const level2 = fileURLToPath(new URL('../test/level-2-role-boundaries.md', import.meta.url));
-const level3 = fileURLToPath(new URL('../test/level-3-state-authority.md', import.meta.url));
-const level3Multiconstraint = fileURLToPath(new URL('../test/level-3-multiconstrain-state-and-authority.md', import.meta.url));
-const level4 = fileURLToPath(new URL('../test/level-4-long-context.md', import.meta.url));
-const level4Long = fileURLToPath(new URL('../test/level-4-long-form-constraint-retention.md', import.meta.url));
-const level4a = fileURLToPath(new URL('../test/level-4a-self-audit.md', import.meta.url));
+const level2 = fileURLToPath(new URL('../legacy-tests/level-2-role-boundaries.md', import.meta.url));
+const level3 = fileURLToPath(new URL('../legacy-tests/level-3-state-authority.md', import.meta.url));
+const level3Multiconstraint = fileURLToPath(new URL('../legacy-tests/level-3-multiconstrain-state-and-authority.md', import.meta.url));
+const level4 = fileURLToPath(new URL('../legacy-tests/level-4-long-context.md', import.meta.url));
+const level4Long = fileURLToPath(new URL('../legacy-tests/level-4-long-form-constraint-retention.md', import.meta.url));
+const level4a = fileURLToPath(new URL('../legacy-tests/level-4a-self-audit.md', import.meta.url));
 
 test('accepts a Markdown answer table', () => {
   const response = '| Question | Classification |\n|---|---|\n| 1 | REQUIRES APPROVAL |\n| 2 | ALLOWED |\n| 3 | PROHIBITED |\n| 4 | ALLOWED |\n| 5 | PROHIBITED |\n| 6 | ROLE_BOUNDARIES_VALID |\n';

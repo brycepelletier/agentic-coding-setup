@@ -1,13 +1,25 @@
-const LEVEL_ORDER = ['1','2','3','4','4A','5','6','7','8'];
-const state = { runs:[], run:null, manifest:{ candidates:[], tests:[] }, selectedRun:null, candidateDetails:null, view:'results', shuttingDown:false };
+const LEVEL_ORDER = Array.from({length:13}, (_, index) => `L${index + 1}`);
+const STORAGE_KEY = 'agent-evaluation-platform:dashboard:v1';
+const preferences = loadPreferences();
+const state = { runs:[], run:null, manifest:{ candidates:[], tests:[] }, selectedRun:null, candidateDetails:null, view:preferences.view === 'ranking' ? 'ranking' : 'results', shuttingDown:false };
 const params = new URLSearchParams(location.search);
 const candidateId = params.get('candidate');
 const candidatePage = location.pathname === '/candidate' || Boolean(candidateId);
 
+function loadPreferences() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}'); }
+  catch { return {}; }
+}
+
+function savePreferences() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedRun:state.selectedRun, view:state.view })); }
+  catch { /* Local storage can be disabled; live updates still work. */ }
+}
+
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[character]));
 const dash = value => value === null || value === undefined || value === '' ? '—' : value;
 const metric = (value, suffix = '', decimals = 2) => value === null || value === undefined || value === '' ? '—' : `${Number(value).toLocaleString(undefined,{ maximumFractionDigits:decimals })}${suffix}`;
-const testLabel = test => String(test ?? '').replace(/\.md$/i,'').replace(/-/g,' ');
+const testLabel = test => test?.name ? `${test.test} — ${test.name}` : String(test?.test ?? '');
 const passResult = result => ['pass','pass_with_discrepancy'].includes(result);
 const resultLabel = result => !result || ['skipped','not_tested'].includes(result) ? 'Not Tested' : String(result).replaceAll('_',' ').toUpperCase();
 const resultClass = result => !result || result === 'skipped' ? 'not_tested' : result;
@@ -33,10 +45,7 @@ function allTests(run = state.run) {
 }
 
 function testCode(test, tests = allTests()) {
-  const level=String(test.test).match(/level-([0-9]+)/i)?.[1] ?? String(test.level);
-  const siblings=tests.filter(candidate => String(candidate.test).match(/level-([0-9]+)/i)?.[1] === level);
-  if (siblings.length < 2) return `L${level}`;
-  return `L${level}${String.fromCharCode(65 + siblings.findIndex(candidate => candidate.test === test.test))}`;
+  return String(test.testId ?? test.test ?? test.level);
 }
 
 function rowsFor(candidate, run = state.run) {
@@ -57,7 +66,7 @@ function candidateUrl(model) {
 
 function updateRunSelect() {
   const select = document.getElementById('runSelect');
-  if (!state.selectedRun) state.selectedRun = params.get('run') || state.runs[0]?.runId || null;
+  if (!state.selectedRun) state.selectedRun = params.get('run') || preferences.selectedRun || state.runs[0]?.runId || null;
   if (state.selectedRun && !state.runs.some(run => run.runId === state.selectedRun)) state.selectedRun = state.runs[0]?.runId ?? null;
   select.disabled = !state.runs.length;
   select.innerHTML = state.runs.length
@@ -65,6 +74,7 @@ function updateRunSelect() {
     : '<option>No runs yet</option>';
   select.onchange = async () => {
     state.selectedRun = select.value;
+    savePreferences();
     const query = new URLSearchParams(location.search);
     query.set('run',state.selectedRun);
     history.replaceState(null,'',`${location.pathname}?${query}`);
@@ -77,18 +87,20 @@ function updateRunSelect() {
 function runSummary() {
   const candidates = allCandidates();
   const results = candidates.flatMap(candidate => rowsFor(candidate));
-  const completed = results.filter(result => !['skipped','not_tested','running'].includes(result.result));
+  const completed = results.filter(result => !['skipped','not_tested','running','invalid_environment','blocked_by_prerequisite','execution_incomplete'].includes(result.result));
   const scores = state.run?.weighted?.candidates?.map(candidate => candidate.score).filter(Number.isFinite) ?? [];
   return { candidates:candidates.length, tests:completed.length, pass:completed.filter(result => passResult(result.result)).length, fail:completed.filter(result => result.result === 'fail').length, score:scores.length ? Math.max(...scores) : null };
 }
 
 function renderHeader() {
   const run = state.run;
-  document.getElementById('runMeta').textContent = run ? `Run ${run.runId} · ${run.status ?? 'running'} · ${new Date(run.generatedAt).toLocaleString()}` : 'No qualification run yet · showing configured candidates';
+  setText('runMeta',run ? `Run ${run.runId} · ${run.status ?? 'running'} · ${new Date(run.generatedAt).toLocaleString()}` : 'No qualification run yet · showing configured candidates');
   const summary = runSummary();
   const stats=document.getElementById('stats');
   stats.hidden=!candidatePage;
-  stats.innerHTML = [['Candidates',summary.candidates],['Tests completed',summary.tests],['Pass',summary.pass],['Fail',summary.fail],['Top weighted score',summary.score]].map(([label,value]) => `<div class="stat"><span class="muted">${label}</span><strong>${esc(dash(value))}</strong></div>`).join('');
+  const values=[['candidates','Candidates',summary.candidates],['tests','Tests completed',summary.tests],['pass','Pass',summary.pass],['fail','Fail',summary.fail],['score','Top provisional score',summary.score]];
+  if (!stats.children.length) stats.innerHTML=values.map(([key,label,value]) => `<div class="stat"><span class="muted">${label}</span><strong data-stat="${key}">${esc(dash(value))}</strong></div>`).join('');
+  else for (const [key,,value] of values) { const node=stats.querySelector(`[data-stat="${key}"]`); if (node) node.textContent=dash(value); }
 }
 
 function renderMain() {
@@ -98,7 +110,7 @@ function renderMain() {
     return;
   }
   content.innerHTML = `<section class="panel"><div class="panel-head"><div><div class="eyebrow">Candidate comparison</div><h2>${state.view === 'results' ? 'Qualification matrix' : 'Candidate ranking'}</h2></div><div class="panel-actions"><button id="viewToggle" class="button" type="button">${state.view === 'results' ? 'View ranking' : 'View test results'}</button></div></div>${state.view === 'results' ? resultsTable() : rankingTable()}</section>`;
-  document.getElementById('viewToggle').onclick = () => { state.view = state.view === 'results' ? 'ranking' : 'results'; renderMain(); };
+  document.getElementById('viewToggle').onclick = () => { state.view = state.view === 'results' ? 'ranking' : 'results'; savePreferences(); renderMain(); };
 }
 
 function resultsTable() {
@@ -106,15 +118,15 @@ function resultsTable() {
   const headers=tests.map(test => `<th title="${esc(testLabel(test.test))}">${esc(testCode(test,tests))}</th>`).join('');
   const body=allCandidates().map(candidate => {
     const results=new Map(rowsFor(candidate).map(result => [result.test,result]));
-    const cells=tests.map(test => { const result=results.get(test.test); return `<td title="${esc(testLabel(test.test))}"><span class="badge ${esc(resultClass(result?.result))}">${esc(resultLabel(result?.result))}</span></td>`; }).join('');
+    const cells=tests.map(test => { const result=results.get(test.test); return `<td title="${esc(testLabel(test.test))}" data-result-cell data-model="${esc(candidate.model)}" data-test="${esc(test.test)}"><span class="badge ${esc(resultClass(result?.result))}">${esc(resultLabel(result?.result))}</span></td>`; }).join('');
     return `<tr><th scope="row"><a class="candidate-link" title="${esc(candidate.model)}" href="${candidateUrl(candidate.model)}">${esc(candidate.name)}</a></th>${cells}</tr>`;
   }).join('');
   return `<div class="table-wrap matrix-wrap"><table class="matrix"><thead><tr><th>Model</th>${headers}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function rankingTable() {
-  const body = rankings().map((candidate,index) => `<tr><td>${index+1}</td><td><a class="candidate-link" href="${candidateUrl(candidate.model)}">${esc(candidate.name)}</a><div class="muted">${esc(candidate.model)}</div></td><td>${esc(candidate.highestLabel)}</td><td>${metric(candidate.averagePromptTokens,'',0)}</td><td>${metric(candidate.averageOutputTokens,'',0)}</td><td>${metric(candidate.averageTotalTokens,'',0)}</td><td>${metric(candidate.averageTokensPerSecond)}</td><td>${metric(candidate.averageTtftMs,' ms')}</td><td>${esc(candidate.status)}</td></tr>`).join('');
-  return `<div class="table-wrap"><table><thead><tr><th>Rank</th><th>Candidate</th><th>Highest test passed</th><th>Avg prompt tokens</th><th>Avg output tokens</th><th>Avg total tokens</th><th>Avg tok/s</th><th>Avg TTFT</th><th>Status / failure</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  const body = rankings().map((candidate,index) => `<tr><td>${index+1}</td><td><a class="candidate-link" href="${candidateUrl(candidate.model)}">${esc(candidate.name)}</a><div class="muted">${esc(candidate.model)}</div></td><td>${esc(candidate.highestLabel)}</td><td>${metric(candidate.provisionalScore,'',0)}</td><td>${metric(candidate.scoredCoveragePercent,'%',0)}</td><td>${metric(candidate.averagePromptTokens,'',0)}</td><td>${metric(candidate.averageOutputTokens,'',0)}</td><td>${metric(candidate.averageTotalTokens,'',0)}</td><td>${metric(candidate.averageTokensPerSecond)}</td><td>${metric(candidate.averageTtftMs,' ms')}</td><td>${esc(candidate.status)}</td></tr>`).join('');
+  return `<div class="table-wrap"><table><thead><tr><th>Rank</th><th>Candidate</th><th>Highest test passed</th><th>Provisional score</th><th>Scored coverage</th><th>Avg prompt tokens</th><th>Avg output tokens</th><th>Avg total tokens</th><th>Avg tok/s</th><th>Avg TTFT</th><th>Status / failure</th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function rankings() {
@@ -127,8 +139,9 @@ function rankings() {
     const highest = passed.at(-1) ?? null;
     const failed = completed.find(row => row.result === 'fail');
     const report = state.run?.models?.find(model => model.model === candidate.model);
+    const weighted = state.run?.weighted?.candidates?.find(item => item.candidate === candidate.model);
     const performance = completed.map(row => row.performance).filter(Boolean);
-    return { ...candidate, highestIndex:highest ? LEVEL_ORDER.indexOf(highest) : -1, highestLabel:highest ? `Level ${highest} ✓` : 'None', averagePromptTokens:average(performance,'promptTokens'), averageOutputTokens:average(performance,'outputTokens'), averageTotalTokens:average(performance,'totalTokens'), averageTokensPerSecond:average(performance,'tokensPerSecond'), averageTtftMs:average(performance,'timeToFirstVisibleTokenMs'), status:failed ? `L${failed.level}: ${discrepancyText(failed) || 'qualification failure'}` : (report?.status ? String(report.status).replaceAll('_',' ') : 'Not Tested') };
+    return { ...candidate, highestIndex:highest ? LEVEL_ORDER.indexOf(highest) : -1, highestLabel:highest ? `Level ${highest} ✓` : 'None', provisionalScore:weighted?.provisionalScore??weighted?.score??null,scoredCoveragePercent:weighted?.scoredCoveragePercent??null, averagePromptTokens:average(performance,'promptTokens'), averageOutputTokens:average(performance,'outputTokens'), averageTotalTokens:average(performance,'totalTokens'), averageTokensPerSecond:average(performance,'tokensPerSecond'), averageTtftMs:average(performance,'timeToFirstVisibleTokenMs'), status:failed ? `L${failed.level}: ${discrepancyText(failed) || 'qualification failure'}` : (report?.status ? String(report.status).replaceAll('_',' ') : 'Not Tested') };
   }).sort((left,right) => right.highestIndex-left.highestIndex || nullLast(left.averageTtftMs,right.averageTtftMs) || descendingNullLast(left.averageOutputTokens,right.averageOutputTokens) || left.name.localeCompare(right.name));
 }
 
@@ -208,11 +221,46 @@ function outputSection(label,value) { return value === null || value === undefin
 
 function render() { updateRunSelect(); renderHeader(); candidatePage ? renderCandidate() : renderMain(); }
 
+function setText(id,value) { const node=document.getElementById(id); if (node && node.textContent !== String(value)) node.textContent=String(value); }
+
+function resultSignature(run) {
+  return JSON.stringify((run?.models ?? []).map(model => [model.model,model.status,(model.qualificationResults ?? []).map(result => [result.test,result.result,result.discrepancies?.length ?? 0])]));
+}
+
+function matrixStructureSignature(run = state.run) {
+  return JSON.stringify([allCandidates(run).map(candidate=>candidate.model),allTests(run).map(test=>test.test)]);
+}
+
+function patchResultsMatrix() {
+  if (candidatePage || state.view !== 'results' || !document.querySelector('.matrix')) return false;
+  const cells=[...document.querySelectorAll('[data-result-cell]')];
+  for (const candidate of allCandidates()) for (const result of rowsFor(candidate)) {
+    const cell=cells.find(node=>node.dataset.model===candidate.model&&node.dataset.test===result.test);
+    const badge=cell?.querySelector('.badge');
+    if (!badge) return false;
+    badge.className=`badge ${resultClass(result.result)}`;
+    badge.textContent=resultLabel(result.result);
+  }
+  return true;
+}
+
+function preserveCandidateUi(renderAction) {
+  const output=document.getElementById('liveOutput');
+  const streamState=output ? { top:output.scrollTop, follow:output.dataset.autoFollow } : null;
+  const open=[...document.querySelectorAll('.output-card[open] summary')].map(node=>node.textContent);
+  renderAction();
+  const next=document.getElementById('liveOutput');
+  if (next && streamState) { next.scrollTop=streamState.top; next.dataset.autoFollow=streamState.follow ?? 'true'; }
+  for (const details of document.querySelectorAll('.output-card')) if (open.includes(details.querySelector('summary')?.textContent)) details.open=true;
+}
+
 async function initial() {
   try {
     const snapshot = await json('/api/bootstrap');
     state.runs=snapshot.runs??[]; state.manifest=snapshot.manifest??state.manifest;
-    state.selectedRun=params.get('run')||state.runs[0]?.runId||null;
+    state.selectedRun=params.get('run')||preferences.selectedRun||state.runs[0]?.runId||null;
+    if (!state.runs.some(run=>run.runId===state.selectedRun)) state.selectedRun=state.runs[0]?.runId??null;
+    savePreferences();
     state.run=state.selectedRun ? (snapshot.run?.runId===state.selectedRun ? snapshot.run : await json(`/api/runs/${encodeURIComponent(state.selectedRun)}`)) : null;
     await refreshCandidateDetails(true);
   } catch (error) { document.getElementById('content').innerHTML=`<div class="empty">Dashboard data is unavailable: ${esc(error.message)}</div>`; }
@@ -224,7 +272,29 @@ function connect() {
   const protocol=location.protocol==='https:'?'wss:':'ws:';
   const socket=new WebSocket(`${protocol}//${location.host}/live`);
   socket.onopen=()=>{document.getElementById('liveDot').classList.add('live');document.getElementById('connection').textContent='Live updates connected'};
-  socket.onmessage=async event=>{const message=JSON.parse(event.data);if(message.type==='server_shutdown'){showShutdown();return}if(message.type!=='snapshot')return;const previousUpdatedAt=state.run?.updatedAt;state.runs=message.runs??[];state.manifest=message.manifest??state.manifest;if(!state.selectedRun)state.selectedRun=state.runs[0]?.runId??null;if(message.run?.runId===state.selectedRun)state.run=message.run;if(candidatePage&&previousUpdatedAt===state.run?.updatedAt){updateLiveProgress(state.run?.liveProgress?.model===candidateId?state.run.liveProgress:null);return}await refreshCandidateDetails();render()};
+  socket.onmessage=async event=>{
+    const message=JSON.parse(event.data);
+    if(message.type==='server_shutdown'){showShutdown();return}
+    if(message.type!=='snapshot')return;
+    const previousRun=state.run;
+    const previousStructure=matrixStructureSignature(previousRun);
+    const previousResults=resultSignature(previousRun);
+    state.runs=message.runs??[];
+    state.manifest=message.manifest??state.manifest;
+    if(!state.selectedRun)state.selectedRun=preferences.selectedRun||(state.runs[0]?.runId??null);
+    if(message.run?.runId===state.selectedRun)state.run=message.run;
+    savePreferences();
+    updateRunSelect();
+    renderHeader();
+    const progress=state.run?.liveProgress?.model===candidateId?state.run.liveProgress:null;
+    if(candidatePage){
+      updateLiveProgress(progress);
+      if(previousResults!==resultSignature(state.run)){ await refreshCandidateDetails(true); preserveCandidateUi(renderCandidate); }
+      return;
+    }
+    if(previousStructure!==matrixStructureSignature(state.run)){renderMain();return}
+    if(previousResults!==resultSignature(state.run) && (state.view==='ranking'||!patchResultsMatrix())) renderMain();
+  };
   socket.onclose=()=>{document.getElementById('liveDot').classList.remove('live');document.getElementById('connection').textContent=state.shuttingDown?'Dashboard stopped':'Reconnecting';if(!state.shuttingDown)setTimeout(connect,1000)};
   socket.onerror=()=>socket.close();
 }

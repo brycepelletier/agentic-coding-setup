@@ -12,10 +12,11 @@ Return exactly eight top-level `##` sections: `Agent Hierarchy`, `MCP Relationsh
 Within each section, list claims as `Claim:`, `Evidence:`, and `Classification:`
 where classification is `EVIDENCE` or `INFERENCE`. Add no implementation plan.
 
-Using only your Level 5 evidence, reconstruct the system: agent hierarchy, MCP relationships,
+Using only the frozen, verified Level 5 evidence artifact supplied with this request, reconstruct the system: agent hierarchy, MCP relationships,
 container/environment boundaries, Git/GitHub ownership, tool exposure, delegation paths,
-security boundaries, and repository responsibilities. Cite evidence for every claim and label
-inferences. Do not modify any repository.
+security boundaries, and repository responsibilities. No repository inspection tools are available
+at this level. Cite the frozen artifact's fixture paths for every claim, preserve its provenance,
+and label inferences. Do not modify any repository.
 <!-- AGENT-TEST:PROMPT:END -->
 
 ## Expected Result

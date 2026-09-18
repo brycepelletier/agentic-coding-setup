@@ -9,10 +9,10 @@ declared in [`execution-contracts.json`](execution-contracts.json).
 
 | Level | Required repositories/evidence | Filesystem | Commands and tools | Mutation | Git/GitHub | Current runner support |
 |---|---|---|---|---|---|---|
-| 5 | All four pinned public fixtures | Read-only fixture workspace | List, read, literal search, bounded read-only Git; `git status` for every fixture | Prohibited | Local Git required; GitHub not required | Supported by the controlled `openai-chat` tool loop when fixtures and Git are available |
-| 6 | Same fixtures plus valid Level 5 execution evidence | Read-only fixture workspace | Same discovery and bounded Git tools | Prohibited | Local Git required; GitHub not required | Supported only after a valid Level 5 agent-execution result |
-| 7 | Fixtures, valid Level 6 evidence, and a concrete authorized planning task | Read-only | Discovery tools sufficient for planning; no write tools | Prohibited | Local Git read-only; GitHub not required | Intentionally `invalid_environment` until a concrete task is configured |
-| 8 | Reference fixtures, valid Level 7 evidence, a disposable authorized implementation repository, and a concrete change request | Reference fixtures read-only; authorized repository writable | Bounded file edits, tests/builds, and captured verification commands | Permitted only in the authorized implementation repository | Local Git verification required; GitHub prohibited without delegation | Intentionally `invalid_environment` until the task, writable repository, and bounded write/test profile are configured |
+| 5 | Four pinned public fixtures plus deterministic documentation-status manifest | Read-only fixture workspace | List, read, literal search, bounded read-only Git; `git status` for every fixture | Prohibited | Local Git required; GitHub not required | Supported |
+| 6 | Frozen verified Level 5 artifact | No repository filesystem | No tools; synthesis from frozen evidence only | Prohibited | Neither Git nor GitHub exposed | Supported from candidate evidence or explicit weighted fallback |
+| 7 | Frozen Level 6 artifact plus telemetry-normalizer task | Disposable read-only task workspace | List, read, search, configured test command | Prohibited; whole worktree verified unchanged | Git used only by harness; GitHub not exposed | Supported as a concrete planning-only task |
+| 8 | Frozen Level 7 plan plus fresh disposable telemetry-normalizer copy | One authorized source file writable | List, read, search, one-file replacement, configured test command | Only `src/normalize-metrics.mjs` | Git used only by harness; Git/GitHub not exposed | Supported with visible and hidden acceptance checks |
 
 Protocol and execution are separate boundaries. `openai-chat` supplies request
 and tool-call semantics; the execution contract decides which workspace and
@@ -21,19 +21,29 @@ agent execution.
 
 ## Fixture identity and evidence
 
-Each execution workspace receives detached checkouts of the four commits pinned
+Level 5 execution workspaces receive detached checkouts of the four commits pinned
 in `execution-contracts.json`. The runner prefers local clones supplied through
 `--fixture-source-root` or `AGENT_EVAL_FIXTURE_SOURCE_ROOT`, then uses the public
 repository URLs. It records fixture URL, commit, clean status, tracked-tree hash,
 all model tool calls and results, final worktree verification, and canonical
 `fixtures/<repository>/<path>` citations.
 
-Level 5 fails substantively when a valid workspace exists but a cited path does
+The documentation-status manifest explicitly identifies current documents and
+states when no obsolete documents exist, so Level 5 never requires an
+unsupported current-versus-legacy inference. Level 5 fails substantively when a valid workspace exists but a cited path does
 not exist, a fixture has no repository evidence, required worktree checks are
-missing, or a fixture changes. Missing fixtures, Git, required tools, prior
-execution evidence, or an authorized task produces `invalid_environment`.
-That outcome is visible but contributes neither weighted credit nor penalty and
-keeps weighted evaluation incomplete.
+missing, or a fixture changes.
+
+Execution outcomes are distinct:
+
+- `invalid_environment`: required host, fixture, or tool environment could not be established.
+- `blocked_by_prerequisite`: the environment is valid, but candidate-produced prior-stage evidence is unavailable or invalid.
+- `execution_incomplete`: execution began but ended before a final answer because of a turn limit, timeout, unfinished tool call, or equivalent termination.
+
+All remain visible and unscored. For `--force --weighted`, a verified canonical
+reference artifact may replace failed candidate evidence for the next isolated
+competency. Results record `evidenceSource` and `dependencyFallback`; fallback
+credit never completes the end-to-end candidate chain.
 
 ## Historical validity audit
 

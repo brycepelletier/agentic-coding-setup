@@ -7,6 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { showHelp, validateArguments, wantsHelp } from './cli-arguments.mjs';
 import { loadDashboardConfig } from './dashboard-config.mjs';
+import { loadAllTestDefinitions } from './test-definitions.mjs';
 
 const args = process.argv.slice(2);
 const HELP = `
@@ -98,11 +99,11 @@ async function route(request, response) {
 }
 
 async function loadManifest() {
-  const [testFiles, targetConfiguration] = await Promise.all([
-    readdir(testRoot),
+  const [definitions, targetConfiguration] = await Promise.all([
+    loadAllTestDefinitions(),
     readJson(targetsFile).catch(error => error.code === 'ENOENT' ? { targets:[] } : Promise.reject(error))
   ]);
-  const tests = testFiles.filter(file => /^level-.*\.md$/i.test(file) && !/(?:-answer|-test)\.md$/i.test(file)).map(test => ({ test, level:levelOf(test) })).sort((left,right) => levelRank(left.level)-levelRank(right.level) || left.test.localeCompare(right.test,undefined,{numeric:true}));
+  const tests = definitions.map(definition => ({ test:definition.id, testId:definition.id, name:definition.name, level:definition.id }));
   const candidates = Array.isArray(targetConfiguration) ? targetConfiguration : (targetConfiguration.targets ?? []);
   return { candidates:candidates.map(({ name,model,protocol }) => ({ name:name??model, model, protocol:protocol??null })), tests };
 }

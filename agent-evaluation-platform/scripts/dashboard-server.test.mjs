@@ -40,8 +40,14 @@ test('serves the dashboard and live run snapshots', async () => {
     assert.match(client, /function testCode/);
     assert.match(client, /dataset\.autoFollow/);
     assert.match(client, /function updateLiveProgress/);
+    assert.match(client, /localStorage\.setItem/);
+    assert.match(client, /function patchResultsMatrix/);
+    assert.doesNotMatch(client, /location\.reload/);
     assert.match(client, /Not Tested/);
     assert.match(client, /new WebSocket/);
+    const css = await fetch(`${base}/assets/dashboard.css`).then(response => response.text());
+    assert.match(css, /max-width:100%/);
+    assert.match(css, /overflow-x:auto/);
     const candidatePage = await fetch(`${base}/candidate?candidate=candidate&run=live-run`).then(response => response.text());
     assert.match(candidatePage, /Agent Evaluation Platform/);
     const bootstrap = await fetch(`${base}/api/bootstrap`).then(response => response.json());

@@ -14,7 +14,9 @@ Do not add architecture or implementation sections.
 
 Inspect the supplied fixture repositories in read-only mode. Report each repository's purpose,
 actual entry points, available scripts/tools, and evidence paths. Distinguish current from
-obsolete documentation. Do not propose architecture, modify files, or invent paths. Report
+obsolete documentation using the suite-provided `evidence/documentation-status.json` manifest;
+an explicit manifest statement that no obsolete documentation exists is a valid distinction.
+Do not infer obsolete status merely from filenames. Do not propose architecture, modify files, or invent paths. Report
 uncertainty explicitly and state which command proved the worktrees remained unchanged.
 <!-- AGENT-TEST:PROMPT:END -->
 

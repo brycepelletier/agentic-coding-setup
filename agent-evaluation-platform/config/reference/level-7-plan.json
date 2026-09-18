@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "1.0.0", "artifactType": "canonical-level-7-plan", "verified": true,
+  "task": "telemetry-normalizer-v1", "permittedChange": "task/telemetry-normalizer/src/normalize-metrics.mjs",
+  "forbiddenChanges": ["task/telemetry-normalizer/ISSUE.md", "task/telemetry-normalizer/README.md", "task/telemetry-normalizer/package.json", "task/telemetry-normalizer/test/normalize-metrics.test.mjs"],
+  "verification": ["node --test"], "provenance": { "taskSpecification": "task/telemetry-normalizer/ISSUE.md" }
+}

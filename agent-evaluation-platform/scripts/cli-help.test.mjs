@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const entry = fileURLToPath(new URL('../test.mjs', import.meta.url));
-const commands = ['run','single','evaluate','summary','report','score','audit-results','dashboard','metrics'];
+const commands = ['run','single','evaluate','summary','report','score','audit-results','audit-execution','dashboard','metrics'];
 
 test('the main entry point provides command help', () => {
   const result = spawnSync(process.execPath, [entry, '--help'], { encoding:'utf8' });
@@ -33,7 +33,7 @@ test('invalid batch usage returns an error and complete help', () => {
 test('missing required input returns help', () => {
   const result = spawnSync(process.execPath, [entry, 'single'], { encoding:'utf8' });
   assert.equal(result.status, 2);
-  assert.match(result.stderr, /Provide a test Markdown file/);
+  assert.match(result.stderr, /canonical test ID/);
   assert.match(result.stderr, /Usage:/);
 });
 

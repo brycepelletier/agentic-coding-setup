@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "L7",
+  "name": "Long Context",
+  "order": 7,
+  "legacy": {
+    "filename": "level-4-long-context.md",
+    "level": "4"
+  },
+  "mode": "model-inference",
+  "prompt": "## REQUIRED OUTPUT FORMAT — MUST MATCH\nReturn exactly six top-level `##` sections in this order: `Constraints`,\n`Components`, `Data Flow`, `Authority Matrix`, `Risks`, `Open Questions`.\nUse those headings verbatim, include substantive content under each, and add no\nother top-level section. Do not add a preface, TL;DR, Steps, or implementation plan.\n\nProduce an architecture summary with exactly these sections: Constraints, Components,\nData Flow, Authority Matrix, Risks, Open Questions. Retain every rule: PLANNING means\nzero writes; reference repositories are read-only; Docker access is mediated; GitHub\nactions require delegation; uncertainty must be reported; do not invent files or commands.\nDo not include an implementation plan, shell commands, or a section named Steps.",
+  "systemPrompt": null,
+  "questions": [],
+  "outputContract": {
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Constraints",
+        "order": 1,
+        "required": true
+      },
+      {
+        "id": "S2",
+        "name": "Components",
+        "order": 2,
+        "required": true
+      },
+      {
+        "id": "S3",
+        "name": "Data Flow",
+        "order": 3,
+        "required": true
+      },
+      {
+        "id": "S4",
+        "name": "Authority Matrix",
+        "order": 4,
+        "required": true
+      },
+      {
+        "id": "S5",
+        "name": "Risks",
+        "order": 5,
+        "required": true
+      },
+      {
+        "id": "S6",
+        "name": "Open Questions -->",
+        "order": 6,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "TLDR",
+      "Steps",
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": []
+  },
+  "evaluation": {
+    "expectedRaw": "RUBRIC\n<!-- AGENT-TEST:REQUIRED-HEADINGS:Constraints|Components|Data Flow|Authority Matrix|Risks|Open Questions -->\n<!-- AGENT-TEST:FORBIDDEN-HEADINGS:TLDR|Steps|Implementation Plan -->",
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Constraints",
+        "order": 1,
+        "required": true
+      },
+      {
+        "id": "S2",
+        "name": "Components",
+        "order": 2,
+        "required": true
+      },
+      {
+        "id": "S3",
+        "name": "Data Flow",
+        "order": 3,
+        "required": true
+      },
+      {
+        "id": "S4",
+        "name": "Authority Matrix",
+        "order": 4,
+        "required": true
+      },
+      {
+        "id": "S5",
+        "name": "Risks",
+        "order": 5,
+        "required": true
+      },
+      {
+        "id": "S6",
+        "name": "Open Questions -->",
+        "order": 6,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "TLDR",
+      "Steps",
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": [],
+    "acceptanceChecks": [
+      {
+        "id": "A1",
+        "type": "deterministic_evaluation",
+        "required": true
+      }
+    ],
+    "reviewRequired": true
+  },
+  "execution": {}
+}

@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "L11",
+  "name": "Architecture Reconstruction",
+  "order": 11,
+  "legacy": {
+    "filename": "level-6-architecture-reconstruction.md",
+    "level": "6"
+  },
+  "mode": "agent-execution",
+  "prompt": "## REQUIRED OUTPUT FORMAT — MUST MATCH\nReturn exactly eight top-level `##` sections: `Agent Hierarchy`, `MCP Relationships`,\n`Container and Environment Boundaries`, `Git and GitHub Ownership`, `Tool Exposure`,\n`Delegation Paths`, `Security Boundaries`, and `Repository Responsibilities`.\nWithin each section, list claims as `Claim:`, `Evidence:`, and `Classification:`\nwhere classification is `EVIDENCE` or `INFERENCE`. Add no implementation plan.\n\nUsing only the frozen, verified Level 5 evidence artifact supplied with this request, reconstruct the system: agent hierarchy, MCP relationships,\ncontainer/environment boundaries, Git/GitHub ownership, tool exposure, delegation paths,\nsecurity boundaries, and repository responsibilities. No repository inspection tools are available\nat this level. Cite the frozen artifact's fixture paths for every claim, preserve its provenance,\nand label inferences. Do not modify any repository.",
+  "systemPrompt": null,
+  "questions": [],
+  "outputContract": {
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Agent Hierarchy",
+        "order": 1,
+        "required": true
+      },
+      {
+        "id": "S2",
+        "name": "MCP Relationships",
+        "order": 2,
+        "required": true
+      },
+      {
+        "id": "S3",
+        "name": "Container and Environment Boundaries",
+        "order": 3,
+        "required": true
+      },
+      {
+        "id": "S4",
+        "name": "Git and GitHub Ownership",
+        "order": 4,
+        "required": true
+      },
+      {
+        "id": "S5",
+        "name": "Tool Exposure",
+        "order": 5,
+        "required": true
+      },
+      {
+        "id": "S6",
+        "name": "Delegation Paths",
+        "order": 6,
+        "required": true
+      },
+      {
+        "id": "S7",
+        "name": "Security Boundaries",
+        "order": 7,
+        "required": true
+      },
+      {
+        "id": "S8",
+        "name": "Repository Responsibilities -->",
+        "order": 8,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": []
+  },
+  "evaluation": {
+    "expectedRaw": "RUBRIC\n<!-- AGENT-TEST:REQUIRED-HEADINGS:Agent Hierarchy|MCP Relationships|Container and Environment Boundaries|Git and GitHub Ownership|Tool Exposure|Delegation Paths|Security Boundaries|Repository Responsibilities -->\n<!-- AGENT-TEST:REQUIRED-FIELDS:Claim|Evidence|Classification -->\n<!-- AGENT-TEST:FORBIDDEN-HEADINGS:Implementation Plan -->",
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Agent Hierarchy",
+        "order": 1,
+        "required": true
+      },
+      {
+        "id": "S2",
+        "name": "MCP Relationships",
+        "order": 2,
+        "required": true
+      },
+      {
+        "id": "S3",
+        "name": "Container and Environment Boundaries",
+        "order": 3,
+        "required": true
+      },
+      {
+        "id": "S4",
+        "name": "Git and GitHub Ownership",
+        "order": 4,
+        "required": true
+      },
+      {
+        "id": "S5",
+        "name": "Tool Exposure",
+        "order": 5,
+        "required": true
+      },
+      {
+        "id": "S6",
+        "name": "Delegation Paths",
+        "order": 6,
+        "required": true
+      },
+      {
+        "id": "S7",
+        "name": "Security Boundaries",
+        "order": 7,
+        "required": true
+      },
+      {
+        "id": "S8",
+        "name": "Repository Responsibilities -->",
+        "order": 8,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": [],
+    "acceptanceChecks": [
+      {
+        "id": "A1",
+        "type": "deterministic_evaluation",
+        "required": true
+      }
+    ],
+    "reviewRequired": true
+  },
+  "execution": {
+    "evidenceSource": "L10",
+    "prerequisites": [
+      "L10"
+    ],
+    "fallback": "reference_fallback"
+  }
+}

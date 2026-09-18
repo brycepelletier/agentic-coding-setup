@@ -8,20 +8,21 @@ import { fileURLToPath } from 'node:url';
 import { queryModel, warmupModel } from './llm-client.mjs';
 import { createTarget, loadTargetFile, parseRequestParameters, publicTarget } from './inference-target.mjs';
 import { startHostMetricsSampler } from './host-metrics.mjs';
-import { extractSystemPrompt, loadSuiteConfig } from './suite-config.mjs';
+import { extractSystemPrompt, loadCanonicalTest, loadSuiteConfig } from './suite-config.mjs';
 import { showHelp, validateArguments, wantsHelp } from './cli-arguments.mjs';
 import { createLiveProgressWriter } from './live-progress.mjs';
-import { executeAgentQualification, InvalidAgentEnvironmentError } from './agent-execution.mjs';
-import { executionContractFor, invalidEnvironment, loadExecutionContracts, prepareExecutionEnvironment, validateLevel5Evidence, verifyExecutionEnvironment } from './execution-environment.mjs';
+import { assessImplementation } from './implementation-assessment.mjs';
+import { executeAgentQualification, ExecutionIncompleteError, InvalidAgentEnvironmentError } from './agent-execution.mjs';
+import { blockedByPrerequisite, executionContractFor, executionIncomplete, invalidEnvironment, loadExecutionContracts, prepareExecutionEnvironment, validateExecutionEvidence } from './execution-environment.mjs';
 
 const [, , file, ...args] = process.argv;
 const cliArgs = process.argv.slice(2);
 const HELP = `
 Usage:
-  test.mjs single TEST.md --target TARGET.json [options]
-  test.mjs single TEST.md --url URL [--model MODEL] [options]
-  test.mjs single TEST.md --response FILE|- [options]
-  test.mjs single TEST.md
+  test.mjs single L1 --target TARGET.json [options]
+  test.mjs single L1 --url URL [--model MODEL] [options]
+  test.mjs single L1 --response FILE|- [options]
+  test.mjs single L1
 
 Run one qualification test. With no response or inference target, print its extracted prompt.
 
@@ -63,19 +64,22 @@ try {
   });
 } catch (error) { showHelp(HELP, error.message); }
 const get = name => { const index=args.findIndex(value=>value===name || value.startsWith(`${name}=`)); return index<0 ? undefined : (args[index].includes('=') ? args[index].slice(name.length+1) : args[index+1]); };
-if (!file || file.startsWith('-')) showHelp(HELP, 'Provide a test Markdown file');
+if (!file || file.startsWith('-')) showHelp(HELP, 'Provide a canonical test ID (L1-L13) or compatible Markdown test file');
 if (get('--url') && get('--endpoint')) showHelp(HELP, 'Use either --url or --endpoint, not both');
 if (get('--endpoint') && get('--path')) showHelp(HELP, '--endpoint is complete and cannot be combined with --path');
 const hasLiveTarget = Boolean(get('--target') || get('--url') || get('--endpoint') || process.env.AGENT_TEST_TARGET_JSON);
 if (get('--response') && hasLiveTarget) showHelp(HELP, 'Use either --response or a live inference target, not both');
 
 const suite = await loadSuiteConfig();
+const canonicalTest = await loadCanonicalTest(file);
+const canonicalId = canonicalTest.id ?? basename(file);
 const executionConfig = await loadExecutionContracts(get('--execution-config'));
-const executionContract = executionContractFor(executionConfig, file);
-const source = await readFile(file, 'utf8');
-const prompt = source.match(/<!-- AGENT-TEST:PROMPT:BEGIN -->([\s\S]*?)<!-- AGENT-TEST:PROMPT:END -->/)?.[1]?.trim();
+const executionContract = executionContractFor(executionConfig, canonicalId);
+const sourcePath = canonicalTest.path ?? file;
+const source = canonicalTest.id ? canonicalTest.definition.prompt : await readFile(sourcePath, 'utf8');
+const prompt = canonicalTest.definition.prompt || source.match(/<!-- AGENT-TEST:PROMPT:BEGIN -->([\s\S]*?)<!-- AGENT-TEST:PROMPT:END -->/)?.[1]?.trim();
 if (!prompt) throw new Error(`Missing prompt markers in ${file}`);
-const systemPrompt = extractSystemPrompt(source, suite, { disabled:args.includes('--no-system-prompt') });
+const systemPrompt = extractSystemPrompt(source, { ...suite, defaultSystemPrompt: canonicalTest.definition.systemPrompt ? { ...suite.defaultSystemPrompt, content:canonicalTest.definition.systemPrompt } : suite.defaultSystemPrompt }, { disabled:args.includes('--no-system-prompt') });
 const responseFile = get('--response');
 let response;
 let queryResult = null;
@@ -88,7 +92,7 @@ const progressWriter = process.env.AGENT_TEST_PROGRESS_FILE ? createLiveProgress
   runId:process.env.AGENT_TEST_RUN_ID ?? null,
   model:process.env.AGENT_TEST_MODEL ?? null,
   test:basename(file),
-  level:file.match(/level-([0-9]+a?)/i)?.[1]?.toUpperCase() ?? null
+    level:canonicalId
 }) : null;
 progressWriter?.update({ stage:'preparing', elapsedMs:0 });
 
@@ -113,9 +117,10 @@ if (responseFile) {
       executionEnvironment=await prepareExecutionEnvironment({
         config:executionConfig,contract:executionContract,workspace,
         fixtureSourceRoot:get('--fixture-source-root') ?? process.env.AGENT_EVAL_FIXTURE_SOURCE_ROOT,
-        priorResultFile:get('--prior-result') ?? process.env.AGENT_TEST_PRIOR_RESULT_FILE
+        priorResultFile:get('--prior-result') ?? process.env.AGENT_TEST_PRIOR_RESULT_FILE,
+        allowReferenceFallback:process.env.AGENT_TEST_ALLOW_REFERENCE_FALLBACK==='1'
       });
-      if (!executionEnvironment.valid) await finishInvalidEnvironment(executionEnvironment.reasons);
+      if (!executionEnvironment.valid) await finishExecutionOutcome(executionEnvironment.outcome ?? 'invalid_environment',executionEnvironment.reasons);
     }
     const sampler = shouldSampleHost() ? startHostMetricsSampler({ intervalMs:sampleInterval(), gpuCommand:get('--gpu-command') ?? process.env.GPU_COMMAND }) : null;
     try {
@@ -128,7 +133,8 @@ if (responseFile) {
     if (hostMetrics) Object.assign(queryResult.performance, pickHostPeaks(hostMetrics));
     response = queryResult.visibleResponse;
   } catch (error) {
-    if (error instanceof InvalidAgentEnvironmentError) await finishInvalidEnvironment([error.message]);
+    if (error instanceof InvalidAgentEnvironmentError) await finishExecutionOutcome('invalid_environment',[error.message]);
+    if (error instanceof ExecutionIncompleteError) await finishExecutionOutcome('execution_incomplete',[error.message],error.evidence);
     await progressWriter?.flush({ stage:'error', error:error.message, elapsedMs:Date.now() - startedAt });
     console.error(`Unable to query inference target: ${error.message}`);
     process.exit(1);
@@ -141,7 +147,7 @@ if (responseFile) {
 await progressWriter?.flush({ stage:'evaluating', elapsedMs:Date.now() - startedAt });
 const jsonFile = get('--json') ?? (queryResult ? await defaultEvidencePath(file, target.model) : null);
 if (jsonFile) await mkdir(dirname(resolve(jsonFile)), { recursive:true });
-const evaluatorArguments = [fileURLToPath(new URL('./evaluate-result.mjs', import.meta.url)), file, ...(jsonFile ? ['--json', jsonFile] : [])];
+const evaluatorArguments = [fileURLToPath(new URL('./evaluate-result.mjs', import.meta.url)), sourcePath, ...(jsonFile ? ['--json', jsonFile] : [])];
 const child = spawn(process.execPath, evaluatorArguments, { stdio:['pipe','inherit','inherit'] });
 child.stdin.end(response);
 child.on('exit', async code => {
@@ -149,9 +155,12 @@ child.on('exit', async code => {
   if (jsonFile) {
     let report = {};
     try { report = JSON.parse(await readFile(jsonFile, 'utf8')); } catch { /* evaluator may have failed before writing */ }
-    report.schemaVersion = '1.2.0';
+    report.schemaVersion = '1.3.0';
     report.suiteVersion = suite.suiteVersion;
-    report.testFile = resolve(file);
+    report.testFile = canonicalTest.path ?? resolve(file);
+    report.testId = canonicalId;
+    report.testName = canonicalTest.definition.name;
+    report.legacyTest = canonicalTest.legacy;
     report.model = target?.model ?? null;
     report.response = response;
     report.visibleResponse = response;
@@ -162,7 +171,7 @@ child.on('exit', async code => {
     if (queryResult) {
       report.inference = {
         ...queryResult.inference,
-        testFile:resolve(file),
+        testFile:canonicalTest.path ?? resolve(file),
         suiteVersion:suite.suiteVersion,
         systemPrompt,
         extractedTestPrompt:prompt,
@@ -171,10 +180,16 @@ child.on('exit', async code => {
       if (hostMetrics) report.inference.hostMetrics = { ...pickHostPeaks(hostMetrics), sampleCount:hostMetrics.sampleCount };
     }
     if (executionEnvironment?.valid) {
-      const validation=basename(file)==='level-5-repository-discovery.md'
-        ? await validateLevel5Evidence({ response,environment:executionEnvironment,toolEvidence:queryResult?.agentExecution?.toolEvidence ?? [] })
-        : { discrepancies:[],postExecution:await verifyExecutionEnvironment(executionEnvironment),citations:[] };
-      if (basename(file)!=='level-5-repository-discovery.md') for (const fixture of validation.postExecution?.fixtures?.filter(item=>!item.unchanged) ?? []) validation.discrepancies.push({ type:'fixture_modified',severity:'hard',classification:'FIXTURE MUTATION',observed:fixture.name });
+      let validation;
+      try {
+        validation=await validateExecutionEvidence({testId:canonicalId,response,environment:executionEnvironment,toolEvidence:queryResult?.agentExecution?.toolEvidence ?? []});
+      } catch (error) {
+        validation={discrepancies:[],postExecution:{valid:false,error:error.message},taskState:null,acceptance:null,citations:[]};
+        report.result='execution_incomplete';
+        report.rubricReviewRequired=false;
+        report.infrastructure={valid:false,outcome:'execution_incomplete',reasons:[`Post-execution validation failed: ${error.message}`]};
+        finalCode=2;
+      }
       report.discrepancies=[...(report.discrepancies ?? []),...validation.discrepancies];
       report.hardFailureCount=report.discrepancies.filter(item=>item.severity==='hard').length;
       if (report.hardFailureCount) { report.result='fail'; report.rubricReviewRequired=false; finalCode=1; }
@@ -182,8 +197,15 @@ child.on('exit', async code => {
         valid:validation.postExecution?.valid && !validation.discrepancies.some(item=>item.severity==='hard'),
         executionVersion:executionConfig.executionVersion,contract:executionContract,
         workspace:executionEnvironment.workspace,fixtures:executionEnvironment.manifest.fixtures,
-        toolCalls:queryResult?.agentExecution?.toolEvidence ?? [],citations:validation.citations,postExecution:validation.postExecution
+        task:executionEnvironment.task ? {name:executionEnvironment.task.name,workspacePath:executionEnvironment.task.workspacePath,mode:executionEnvironment.task.mode,permittedWrites:executionEnvironment.task.permittedWrites,baseline:executionEnvironment.task.baseline,hiddenAcceptance:executionEnvironment.task.hiddenAcceptance,visibleTestCommand:executionEnvironment.task.visibleTestCommand} : null,
+        evidenceSource:executionEnvironment.evidenceSource ?? null,dependencyFallback:Boolean(executionEnvironment.dependencyFallback),priorEvidence:executionEnvironment.priorEvidence ? {sha256:executionEnvironment.priorEvidence.sha256,sourceFile:executionEnvironment.priorEvidence.sourceFile,artifactType:executionEnvironment.priorEvidence.artifactType} : null,
+        toolCalls:queryResult?.agentExecution?.toolEvidence ?? [],citations:validation.citations,postExecution:validation.postExecution,taskState:validation.taskState ?? null,acceptance:validation.acceptance ?? null
       };
+      report.evidenceSource=executionEnvironment.evidenceSource ?? null;
+      report.dependencyFallback=Boolean(executionEnvironment.dependencyFallback);
+      Object.assign(report,assessImplementation(report));
+      if (report.result === 'execution_incomplete') finalCode=2;
+      else if (report.result === 'fail') finalCode=1;
     }
     if (warmup) {
       const raw = warmup.rawBackendEvidence;
@@ -198,20 +220,31 @@ child.on('exit', async code => {
   process.exit(finalCode);
 });
 
-async function finishInvalidEnvironment(reasons) {
-  const outcome=invalidEnvironment({ testFile:file,contract:executionContract,reasons,executionVersion:executionConfig.executionVersion });
+async function finishInvalidEnvironment(reasons) { return finishExecutionOutcome('invalid_environment',reasons); }
+async function finishExecutionOutcome(kind,reasons,partialEvidence=null) {
+  const factory=kind==='blocked_by_prerequisite'?blockedByPrerequisite:kind==='execution_incomplete'?executionIncomplete:invalidEnvironment;
+  const outcome=factory({ testFile:file,contract:executionContract,reasons,executionVersion:executionConfig.executionVersion,termination:partialEvidence?.reason,evidence:partialEvidence?{turnCount:partialEvidence.turns?.length??0,toolCallCount:partialEvidence.toolEvidence?.length??0}:null });
   const jsonFile=get('--json');
+  const lastResult=partialEvidence?.lastResult ?? partialEvidence?.turns?.at?.(-1) ?? null;
+  const partialResponse=lastResult?.visibleResponse ?? response ?? null;
   const report={
-    schemaVersion:'1.2.0',suiteVersion:suite.suiteVersion,testFile:resolve(file),test:resolve(file),
-    level:file.match(/level-([0-9]+a?)/i)?.[1]?.toUpperCase() ?? 'UNKNOWN',model:target?.model ?? process.env.AGENT_TEST_MODEL ?? null,
-    response:response ?? null,visibleResponse:response ?? null,reasoningResponse:null,finishReason:null,backendUsage:null,
+    schemaVersion:'1.3.0',suiteVersion:suite.suiteVersion,testFile:resolve(file),test:resolve(file),
+    level:canonicalId, testId:canonicalId, testName:canonicalTest.definition.name, legacyTest:canonicalTest.legacy,model:target?.model ?? process.env.AGENT_TEST_MODEL ?? null,
+    response:partialResponse,visibleResponse:partialResponse,reasoningResponse:lastResult?.reasoningResponse ?? null,finishReason:lastResult?.finishReason ?? null,backendUsage:lastResult?.usage ?? null,
     performance:emptyPerformance(Date.now()-startedAt),...outcome
   };
-  if (jsonFile) { await mkdir(dirname(resolve(jsonFile)),{recursive:true}); await writeFile(jsonFile,JSON.stringify(report,null,2)); }
-  console.log(`LEVEL ${report.level}: INVALID ENVIRONMENT`);
+  report.evidenceSource=executionEnvironment?.evidenceSource??(kind==='blocked_by_prerequisite'?'candidate':null);
+  report.dependencyFallback=Boolean(executionEnvironment?.dependencyFallback);
+  if (partialEvidence) report.executionEvidence={valid:false,executionVersion:executionConfig.executionVersion,contract:executionContract,evidenceSource:executionEnvironment?.evidenceSource??null,dependencyFallback:Boolean(executionEnvironment?.dependencyFallback),turns:partialEvidence.turns??[],toolCalls:partialEvidence.toolEvidence??[],termination:{reason:partialEvidence.reason,error:partialEvidence.error??null}};
+  if (jsonFile) {
+    await mkdir(dirname(resolve(jsonFile)),{recursive:true});
+    if (partialEvidence?.raw) report.inference={artifacts:await persistRawArtifacts(jsonFile,{body:partialEvidence.raw.join('\n\n'),contentType:'application/x-agent-execution-transcript'},'inference')};
+    await writeFile(jsonFile,JSON.stringify(report,null,2));
+  }
+  console.log(`LEVEL ${report.level}: ${kind.replaceAll('_',' ').toUpperCase()}`);
   for (const reason of outcome.infrastructure.reasons) console.log(`  - ${reason}`);
-  await progressWriter?.flush({ stage:'invalid_environment',result:'invalid_environment',reasons:outcome.infrastructure.reasons,elapsedMs:Date.now()-startedAt });
-  process.exit(2);
+  await progressWriter?.flush({ stage:kind,result:kind,reasons:outcome.infrastructure.reasons,elapsedMs:Date.now()-startedAt });
+  process.exit(kind==='invalid_environment'?2:kind==='blocked_by_prerequisite'?3:4);
 }
 
 async function resolveTarget() {

@@ -50,6 +50,39 @@ test('invalid environments receive neither credit nor penalty and keep scoring i
   assert.equal(candidate.risks.criticalViolationCount,0);
 });
 
+test('blocked and incomplete executions are unscored and reported separately',()=>{
+  const scoring=config([{id:'authority_scope',label:'Authority',weight:100}],[
+    {test:'valid.md',groups:[{competency:'authority_scope',questions:'1'}]},
+    {test:'blocked.md',groups:[{competency:'authority_scope',questions:'1'}]},
+    {test:'incomplete.md',groups:[{competency:'authority_scope',questions:'1'}]}
+  ]);
+  const candidate=scoreRun(run([result('valid.md','pass'),result('blocked.md','blocked_by_prerequisite'),result('incomplete.md','execution_incomplete')]),scoring).candidates[0];
+  assert.equal(candidate.provisionalScore,100);
+  assert.equal(candidate.scoredCoveragePercent,33);
+  assert.equal(candidate.blockedByPrerequisiteCount,1);
+  assert.equal(candidate.executionIncompleteCount,1);
+  assert.equal(candidate.invalidBlockedIncompleteCount,2);
+});
+
+test('coverage distinguishes a provisional perfect score from complete evaluation',()=>{
+  const scoring=config([{id:'authority_scope',label:'Authority',weight:70},{id:'planning',label:'Planning',weight:30}],[
+    {test:'authority.md',groups:[{competency:'authority_scope',questions:'1'}]},
+    {test:'planning.md',groups:[{competency:'planning',questions:'1'}]}
+  ]);
+  const candidate=scoreRun(run([result('authority.md','pass'),result('planning.md','invalid_environment')]),scoring).candidates[0];
+  assert.equal(candidate.provisionalScore,100);
+  assert.equal(candidate.scoredCoveragePercent,70);
+  assert.equal(candidate.complete,false);
+});
+
+test('reference fallback scores isolated competency but does not complete the end-to-end chain',()=>{
+  const scoring=config([{id:'planning',label:'Planning',weight:100}],[{test:'level-7-planning-only.md',groups:[{competency:'planning',questions:'1'}]}]);
+  const fallback={...result('level-7-planning-only.md','pass'),level:'7',evidenceSource:'reference_fallback',dependencyFallback:true};
+  const candidate=scoreRun(run([fallback]),scoring).candidates[0];
+  assert.equal(candidate.provisionalScore,100);
+  assert.equal(candidate.endToEndChainComplete,false);
+});
+
 test('configured risk ceilings remain visible and cap the overall score', () => {
   const scoring = config([{ id:'authority_scope', label:'Authority', weight:100 }], [{ test:'matrix.md', groups:[{ competency:'authority_scope', questions:'1-10' }] }]);
   scoring.criticalFindings = [{ competencies:['authority_scope'], severities:['hard'] }];

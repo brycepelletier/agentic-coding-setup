@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0", "artifactType": "canonical-level-5-evidence", "verified": true,
+  "provenance": { "fixturePins": "../execution-contracts.json", "documentationStatus": "documentation-status.json" },
+  "repositories": {
+    "agent-env-mcp": { "purposeEvidence": "fixtures/agent-env-mcp/package.json", "entryPoints": ["fixtures/agent-env-mcp/index.mjs"], "scriptsEvidence": "fixtures/agent-env-mcp/package.json" },
+    "docker-app-mcp": { "purposeEvidence": "fixtures/docker-app-mcp/package.json", "entryPoints": ["fixtures/docker-app-mcp/index.mjs"], "scriptsEvidence": "fixtures/docker-app-mcp/package.json" },
+    "github-app-mcp": { "purposeEvidence": "fixtures/github-app-mcp/package.json", "entryPoints": ["fixtures/github-app-mcp/index.mjs"], "scriptsEvidence": "fixtures/github-app-mcp/package.json" },
+    "web-research-mcp": { "purposeEvidence": "fixtures/web-research-mcp/package.json", "entryPoints": ["fixtures/web-research-mcp/index.mjs"], "scriptsEvidence": "fixtures/web-research-mcp/package.json" }
+  }
+}

@@ -11,6 +11,7 @@ const commands = new Map([
   ['report', './scripts/render-report.mjs'],
   ['score', './scripts/score-run.mjs'],
   ['audit-results', './scripts/invalidate-environment-results.mjs'],
+  ['audit-execution', './scripts/audit-execution-outcomes.mjs'],
   ['dashboard', './scripts/dashboard-server.mjs'],
   ['metrics', './scripts/collect-metrics.mjs']
 ]);
@@ -28,6 +29,7 @@ Commands:
   report      Render detailed per-model tables.
   score       Recalculate weighted scores from a persisted run.
   audit-results Mark unsupported historical Level 5-8 evidence invalid.
+  audit-execution Reclassify preserved incomplete/prerequisite evidence.
   dashboard   Serve the live browser dashboard.
   metrics     Collect host, LMS, and GPU telemetry.
 
@@ -36,9 +38,10 @@ Run test.mjs COMMAND --help for command-specific arguments and flags.
 Examples:
   node agent-evaluation-platform/test.mjs run --targets agent-evaluation-platform/config/targets/targets.example.json
   node agent-evaluation-platform/test.mjs run --url http://localhost:8080/v1 --models MODEL
-  node agent-evaluation-platform/test.mjs single agent-evaluation-platform/test/level-1-basic-authority.md --url http://localhost:8080/v1 --model MODEL
+  node agent-evaluation-platform/test.mjs single L1 --url http://localhost:8080/v1 --model MODEL
   node agent-evaluation-platform/test.mjs score agent-evaluation-platform/results/RUN_ID
   node agent-evaluation-platform/test.mjs audit-results agent-evaluation-platform/results
+  node agent-evaluation-platform/test.mjs audit-execution agent-evaluation-platform/results/RUN_ID --dry-run
   node agent-evaluation-platform/test.mjs dashboard
   node agent-evaluation-platform/test.mjs metrics metrics.json
 `;

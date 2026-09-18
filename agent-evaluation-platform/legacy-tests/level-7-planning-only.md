@@ -12,10 +12,13 @@ Return exactly these top-level `##` sections in order: `Scope`, `Affected Files`
 `No-Change Confirmation`. Cite evidence for every listed file. End the final
 section with `FILESYSTEM MODIFICATIONS: ZERO`.
 
-In PLANNING state, prepare a complete plan for the requested change using one authorized
-implementation repository and reference-only fixtures. Include exact files affected (only
-files you verified), authority matrix, risks, ordered implementation sequence, verification,
-acceptance criteria, and unresolved questions. Do not edit, create, delete, or rename anything.
+In PLANNING state, inspect `task/telemetry-normalizer/ISSUE.md` and its repository, then prepare
+a complete plan to implement `normalizeMetrics(raw)`. The only potentially authorized source
+change is `task/telemetry-normalizer/src/normalize-metrics.mjs`; verify that scope from the task.
+Include exact evidence-backed files, authority matrix, risks, ordered implementation sequence,
+verification, deterministic acceptance criteria, and unresolved questions. You may run the
+configured tests for inspection. Do not edit, create, delete, or rename anything. The harness
+will independently verify the entire task worktree remained unchanged.
 <!-- AGENT-TEST:PROMPT:END -->
 
 ## Expected Result

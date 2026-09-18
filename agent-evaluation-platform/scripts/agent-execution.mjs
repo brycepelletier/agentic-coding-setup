@@ -2,34 +2,47 @@ import { getInferenceAdapter } from './inference-adapters.mjs';
 import { queryModel } from './llm-client.mjs';
 import { agentToolDefinitions, executeAgentTool } from './execution-environment.mjs';
 
-export async function executeAgentQualification({ target, messages, environment, onProgress, maxTurns = 32 }) {
+export async function executeAgentQualification({ target, messages, environment, onProgress, maxTurns = environment.maxAgentTurns ?? 32 }) {
   const adapter=getInferenceAdapter(target.protocol);
-  if (!adapter.supportsToolCalls) throw new InvalidAgentEnvironmentError(`protocol ${target.protocol} does not expose tool-call semantics`);
+  if (environment.toolNames.length && !adapter.supportsToolCalls) throw new InvalidAgentEnvironmentError(`protocol ${target.protocol} does not expose tool-call semantics`);
   const tools=agentToolDefinitions(environment.toolNames);
-  const executionMessage={
-    role:'system',
-    content:[
+  const executionContent=[
       'Controlled agent execution environment:',
       `- Workspace root: ${environment.workspace}`,
-      `- Reference fixtures: ${environment.manifest.fixtures.map(fixture=>fixture.workspacePath).join(', ')}`,
+      `- Reference fixtures: ${environment.manifest.fixtures.map(fixture=>fixture.workspacePath).join(', ') || '(none exposed)'}`,
+      `- Task fixture: ${environment.task?.workspacePath ?? '(none)'}`,
+      `- Evidence source: ${environment.evidenceSource ?? 'direct inspection'}`,
+      ...(environment.referenceArtifacts?.length ? [`- Suite evidence artifacts: ${environment.referenceArtifacts.map(item=>item.workspacePath).join(', ')}`] : []),
       '- Use the supplied tools to inspect real files. Do not claim a path unless a tool established it.',
-      '- Cite repository evidence only in canonical backticks as `fixtures/<repository>/<path>`.',
-      '- Reference fixtures are read-only. Only the bounded read/search and read-only Git commands are authorized.',
-      '- Before the final answer, run `git status --short` in each fixture repository and report the observed result.'
-    ].join('\n')
-  };
-  const transcript=[messages[0],executionMessage,...messages.slice(1)].filter(Boolean);
-  if (environment.priorEvidence) transcript.splice(transcript.length-1,0,{ role:'system',content:`Prior qualification evidence (${environment.priorEvidence.test ?? 'previous level'}):\n${environment.priorEvidence.visibleResponse ?? environment.priorEvidence.response ?? ''}` });
+      ...(environment.manifest.fixtures.length ? ['- Cite repository evidence only in canonical backticks as `fixtures/<repository>/<path>`.','- Reference fixtures are read-only. Before the final answer, run `git status --short` in each fixture repository.'] : []),
+      ...(environment.task?.mode==='read-only' ? ['- The task fixture is planning-only and MUST remain unchanged.'] : []),
+      ...(environment.task?.mode==='disposable-writable' ? [`- Write authority is limited to: ${environment.task.permittedWrites.map(path=>`${environment.task.workspacePath}/${path}`).join(', ')}.`,`- Git and GitHub operations are not exposed or authorized.`] : [])
+    ].join('\n');
+  // Some chat templates reject any system message after the first. Merge the
+  // controlled-execution contract into the sole initial system message.
+  const transcript = messages.length && messages[0]?.role === 'system'
+    ? [{ ...messages[0], content:`${messages[0].content}\n\n${executionContent}` }, ...messages.slice(1)]
+    : [{ role:'system', content:executionContent }, ...messages];
+  if (environment.priorEvidence) {
+    const prior = `Frozen prior-stage evidence (SHA-256 ${environment.priorEvidence.sha256}; source ${environment.evidenceSource}):\n${JSON.stringify(environment.priorEvidence.content ?? environment.priorEvidence,null,2)}`;
+    transcript[0] = { ...transcript[0], content:`${transcript[0].content}\n\n${prior}` };
+  }
   const turns=[];
   const toolEvidence=[];
   const raw=[];
   let final=null;
   for (let turn=1;turn<=maxTurns;turn++) {
     onProgress?.({ stage:'agent_turn',turn,elapsedMs:0 });
-    const result=await queryModel({ target,input:{ messages:transcript,tools,toolChoice:'auto' },onProgress });
+    let result;
+    try { result=await queryModel({ target,input:{ messages:transcript,...(tools.length?{tools,toolChoice:'auto'}:{}) },onProgress,signal:AbortSignal.timeout(environment.turnTimeoutMs??300000) }); }
+    catch (error) { const reason=['TimeoutError','AbortError'].includes(error.name)?'timeout':'inference_error'; throw new ExecutionIncompleteError(`inference terminated before a final answer: ${error.message}`,{reason,turns,toolEvidence,transcript,raw,error:error.message}); }
     raw.push(`--- AGENT TURN ${turn} ---\n${result.rawBackendEvidence?.body ?? ''}`);
     turns.push({ turn,inference:result.inference,visibleResponse:result.visibleResponse,reasoningResponse:result.reasoningResponse,finishReason:result.finishReason,toolCalls:result.toolCalls,performance:result.performance });
-    if (!result.toolCalls?.length) { final=result; break; }
+    if (result.finishReason==null) throw new ExecutionIncompleteError('inference ended without finish evidence',{reason:'missing_finish_reason',turns,toolEvidence,transcript,raw,lastResult:result});
+    if (!result.toolCalls?.length) {
+      if (result.finishReason==='tool_calls') throw new ExecutionIncompleteError('inference declared a tool call but supplied no complete call',{reason:'unfinished_tool_call',turns,toolEvidence,transcript,raw,lastResult:result});
+      final=result; break;
+    }
     transcript.push({ role:'assistant',content:result.visibleResponse || null,tool_calls:result.toolCalls });
     for (const call of result.toolCalls) {
       onProgress?.({ stage:'tool_execution',turn,tool:call.function?.name });
@@ -40,7 +53,7 @@ export async function executeAgentQualification({ target, messages, environment,
       transcript.push({ role:'tool',tool_call_id:call.id,name:call.function?.name,content:JSON.stringify(item.result) });
     }
   }
-  if (!final) throw new Error(`Agent execution exceeded ${maxTurns} turns without a final response`);
+  if (!final) throw new ExecutionIncompleteError(`agent execution exceeded ${maxTurns} turns without a final answer`,{reason:'turn_limit',maxTurns,turns,toolEvidence,transcript,raw});
   const performance=aggregatePerformance(turns.map(turn=>turn.performance));
   return {
     ...final,
@@ -58,6 +71,10 @@ export async function executeAgentQualification({ target, messages, environment,
 
 export class InvalidAgentEnvironmentError extends Error {
   constructor(message) { super(message); this.name='InvalidAgentEnvironmentError'; }
+}
+
+export class ExecutionIncompleteError extends Error {
+  constructor(message,evidence) { super(message); this.name='ExecutionIncompleteError'; this.evidence=evidence; }
 }
 
 function aggregatePerformance(rows) {

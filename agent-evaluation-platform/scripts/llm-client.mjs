@@ -17,7 +17,7 @@ export async function warmupModel({ target, prompt, systemPrompt, onProgress }) 
   };
 }
 
-export async function queryModel({ target, input, onProgress }) {
+export async function queryModel({ target, input, onProgress, signal }) {
   const adapter = getInferenceAdapter(target.protocol);
   const resolvedEndpoint = resolveEndpoint(target, adapter.defaultPath);
   const built = adapter.buildRequest({ target, input });
@@ -28,7 +28,8 @@ export async function queryModel({ target, input, onProgress }) {
   const response = await fetch(resolvedEndpoint, {
     method:'POST',
     headers:{ 'content-type':'application/json', ...authenticationHeaders(target.authentication) },
-    body:requestBodyText
+    body:requestBodyText,
+    signal
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
   const consumed = await adapter.consumeResponse(response, timing, onProgress);

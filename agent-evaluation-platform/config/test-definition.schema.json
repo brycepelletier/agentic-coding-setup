@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-evaluation-platform/test-definition.schema.json",
+  "type": "object",
+  "required": ["id", "name", "legacy", "order", "mode", "prompt", "evaluation"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^L(?:[1-9]|1[0-3])$" },
+    "name": { "type": "string", "minLength": 1 },
+    "legacy": { "type": "object", "required": ["filename", "level"], "properties": { "filename": { "type": "string" }, "level": { "type": "string" } }, "additionalProperties": false },
+    "order": { "type": "integer", "minimum": 1, "maximum": 13 },
+    "mode": { "enum": ["model-inference", "agent-execution"] },
+    "prompt": { "type": "string", "minLength": 1 },
+    "systemPrompt": { "type": ["string", "null"] },
+    "questions": { "type": "array", "items": { "$ref": "#/$defs/question" } },
+    "evaluation": { "type": "object" }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "required": ["id", "number", "prompt", "expected", "accepted", "severity", "classification", "competencies"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^Q[1-9][0-9]*$" },
+        "number": { "type": "integer", "minimum": 1 },
+        "prompt": { "type": "string" },
+        "expected": { "type": "string", "minLength": 1 },
+        "accepted": { "type": "array", "items": { "type": "string" } },
+        "severity": { "enum": ["hard", "note"] },
+        "classification": { "type": "string", "minLength": 1 },
+        "competencies": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "risk": { "type": "object", "properties": { "authorityViolation": { "type": "boolean" }, "critical": { "type": "boolean" } }, "additionalProperties": false }
+      },
+      "additionalProperties": true
+    }
+  }
+}

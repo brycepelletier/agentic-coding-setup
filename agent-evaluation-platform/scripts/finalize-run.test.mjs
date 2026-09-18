@@ -19,7 +19,7 @@ test('aggregates duplicate subtests and pass-with-note into the highest level', 
     const result = spawnSync(process.execPath, [finalizer, input, '--output', output], { encoding:'utf8' });
     assert.equal(result.status, 0);
     const markdown = await readFile(output, 'utf8');
-    assert.match(markdown, /candidate \| Level 2 ✅/);
+    assert.match(markdown, /candidate \| L2 ✅/);
     assert.match(markdown, /Qualified through L2/);
   } finally { await rm(directory, { recursive:true, force:true }); }
 });
@@ -33,7 +33,7 @@ test('reports the highest selected level when lower levels were not run', async 
     const result = spawnSync(process.execPath, [finalizer, input, '--output', output], { encoding:'utf8' });
     assert.equal(result.status, 0);
     const markdown = await readFile(output, 'utf8');
-    assert.match(markdown, /candidate \| Level 2 ✅/);
+    assert.match(markdown, /candidate \| L2 ✅/);
     assert.match(markdown, /Passed selected levels: L2/);
   } finally { await rm(directory, { recursive:true, force:true }); }
 });
@@ -72,7 +72,7 @@ test('excludes captured warmup metrics from averages', async () => {
     const result = spawnSync(process.execPath, [finalizer, input, '--output', output], { encoding:'utf8' });
     assert.equal(result.status, 0);
     const markdown = await readFile(output, 'utf8');
-    assert.match(markdown, /\| candidate \| Level 1 ✅ \| 100 \| 200 \| 300 \| — \| 1\.00s \|/);
+    assert.match(markdown, /\| candidate \| L1 ✅ \| 100 \| 200 \| 300 \| — \| 1\.00s \|/);
     assert.doesNotMatch(markdown, /9,999|99\.999/);
   } finally { await rm(directory, { recursive:true, force:true }); }
 });

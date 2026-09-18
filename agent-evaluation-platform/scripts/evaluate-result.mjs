@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from 'node:fs/promises';
 import { showHelp, validateArguments, wantsHelp } from './cli-arguments.mjs';
+import { canonicalId, resolveTestInput } from './test-definitions.mjs';
 
 const ALIAS_GROUPS = [
   ['ZERO','0','NONE','NO REPOSITORIES'],
@@ -27,9 +28,9 @@ const ALIAS_GROUPS = [
 
 const args = process.argv.slice(2);
 const HELP = `
-Usage: test.mjs evaluate TEST.md [--json FILE]
+Usage: test.mjs evaluate L1 [--json FILE]
 
-Read a model response from standard input and evaluate it against TEST.md.
+Read a model response from standard input and evaluate it against a canonical test ID (or legacy Markdown alias).
 
 Options:
   --json FILE    Save the structured evaluation result.
@@ -42,18 +43,25 @@ const file = process.argv[2];
 if (!file || file.startsWith('-')) showHelp(HELP, 'Provide a test Markdown file');
 const jsonIndex = process.argv.indexOf('--json');
 const jsonFile = jsonIndex >= 0 ? process.argv[jsonIndex + 1] : undefined;
-const test = await readFile(file, 'utf8');
+const resolvedTest = await resolveTestInput(file);
+const canonicalInput = Boolean(resolvedTest.id) && /(?:^|[\\/])L(?:[1-9]|1[0-3])(?:\.json)?$/i.test(file);
+const sourceFile = resolvedTest.id && resolvedTest.legacy ? new URL(`../legacy-tests/${resolvedTest.legacy}`, import.meta.url) : file;
+const test = canonicalInput ? resolvedTest.definition.prompt : await readFile(sourceFile, 'utf8');
 let response = '';
 process.stdin.setEncoding('utf8');
 for await (const chunk of process.stdin) response += chunk;
 
-const expectedBlock = test.match(/<!-- AGENT-TEST:EXPECT:BEGIN -->([\s\S]*?)<!-- AGENT-TEST:EXPECT:END -->/)?.[1];
+const expectedBlock = canonicalInput
+  ? (resolvedTest.definition.questions?.length
+    ? resolvedTest.definition.questions.map(question => `${question.number}. ${question.expected}${question.accepted.slice(1).map(value => `|${value}`).join('')}`).join('\n')
+    : (resolvedTest.definition.evaluation?.expectedRaw ?? 'RUBRIC'))
+  : test.match(/<!-- AGENT-TEST:EXPECT:BEGIN -->([\s\S]*?)<!-- AGENT-TEST:EXPECT:END -->/)?.[1];
 if (!expectedBlock) throw new Error(`Missing expected-result markers in ${file}`);
+const level = canonicalInput ? resolvedTest.id : file.match(/level-([0-9]+a?)/i)?.[1]?.toUpperCase() ?? 'UNKNOWN';
 const expectations = parseExpectations(expectedBlock);
-const rubric = expectedBlock.trim() === 'RUBRIC' || expectations.length === 0;
-const discrepancies = rubric ? evaluateRubric(test, response) : evaluateMatrix(expectations, response);
+const rubric = canonicalInput ? !resolvedTest.definition.questions?.length : expectedBlock.trim() === 'RUBRIC' || expectations.length === 0;
+const discrepancies = rubric ? evaluateRubric(canonicalInput ? structuredEvaluationSource(resolvedTest.definition) : test, response) : evaluateMatrix(expectations, response);
 const hardFailures = discrepancies.filter(discrepancy => discrepancy.severity === 'hard');
-const level = file.match(/level-([0-9]+a?)/i)?.[1]?.toUpperCase() ?? 'UNKNOWN';
 const result = hardFailures.length ? 'fail' : (discrepancies.length ? 'pass_with_discrepancy' : 'pass');
 
 if (result === 'pass') console.log(`LEVEL ${level}: NO DISCREPANCIES`);
@@ -66,13 +74,19 @@ else if (result === 'pass_with_discrepancy') {
   process.exitCode = 1;
 }
 if (rubric && result === 'pass') console.log(`LEVEL ${level}: RUBRIC REVIEW REQUIRED`);
-if (jsonFile) await writeFile(jsonFile, JSON.stringify({ suiteVersion:'1.0.0', test:file, level, result, discrepancies, hardFailureCount:hardFailures.length, rubricReviewRequired:rubric&&!hardFailures.length }, null, 2));
+if (jsonFile) await writeFile(jsonFile, JSON.stringify({ suiteVersion:'1.3.0', test:resolvedTest.id ?? file, testId:resolvedTest.id ?? null, testName:resolvedTest.definition?.name ?? null, legacyTest:resolvedTest.legacy ?? null, level, result, discrepancies, hardFailureCount:hardFailures.length, rubricReviewRequired:rubric&&!hardFailures.length }, null, 2));
 
 function parseExpectations(block) {
   return [...block.matchAll(/^\s*(\d+)\s*(?:[.)]|\s)\s*(.+?)\s*$/gm)].map(match => {
     const accepted = match[2].split('|').map(value => value.trim()).filter(Boolean);
     return { number:Number(match[1]), expected:accepted[0], accepted };
   });
+}
+
+function structuredEvaluationSource(definition) {
+  const evaluation = definition.evaluation ?? {};
+  const marker = (name, values) => values?.length ? `<!-- AGENT-TEST:${name}:${values.join('|')} -->` : '';
+  return `${definition.prompt}\n${marker('REQUIRED-HEADINGS',(evaluation.requiredSections ?? []).map(item => item.name))}${marker('FORBIDDEN-HEADINGS',evaluation.forbiddenHeadings ?? [])}${marker('REQUIRED-FOOTERS',(evaluation.requiredFooters ?? []).map(item => item.text))}${evaluation.rules ?? ''}`;
 }
 
 function evaluateMatrix(expectations, modelResponse) {
@@ -109,7 +123,8 @@ function evaluateExpectation(expectation, answerBlocks, modelResponse, expectati
     observed:observed || '(missing)',
     observedConcept,
     severity,
-    classification:severity === 'note' ? 'CONSERVATIVE AUTHORITY INTERPRETATION' : 'ANSWER MISMATCH'
+    classification:severity === 'note' ? 'CONSERVATIVE AUTHORITY INTERPRETATION' : 'ANSWER MISMATCH',
+    ...(level === 'L5' && expectation.number === 6 ? { risk:{authorityViolation:true,critical:true} } : {})
   };
 }
 

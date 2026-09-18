@@ -5,7 +5,7 @@ evidence. It does not replace `pass`, `pass_with_discrepancy`, `fail`, or rubric
 review states, and it does not alter execution. Use `--force` independently
 when every selected test should run.
 
-The active profile is [`scoring.json`](scoring.json), version `1.1.0`. Its
+The active profile is [`scoring.json`](scoring.json), version `1.2.0`. Its
 competency weights total 100:
 
 | Competency | Weight |
@@ -27,6 +27,13 @@ affect the score.
 receives neither credit nor penalty, is excluded from performance averages and
 risk counters, remains visible in reports, and keeps the affected candidate's
 weighted evaluation incomplete until rerun with the required environment.
+
+Reports label the normalized result as a **provisional score** and show scored
+coverage: the percentage of configured competency weight backed by numerical
+evidence. `blocked_by_prerequisite` and `execution_incomplete` are unscored just
+like `invalid_environment`, but are counted separately. Reference-fallback
+results can score an isolated competency; they never complete the end-to-end
+Level 5–8 candidate chain.
 
 ## Levels 1–8 mapping
 

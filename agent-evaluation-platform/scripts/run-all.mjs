@@ -8,13 +8,15 @@ import { fileURLToPath } from 'node:url';
 import { warmupModel } from './llm-client.mjs';
 import { createTarget, loadTargetFile, parseRequestParameters, publicTarget } from './inference-target.mjs';
 import { loadSuiteConfig } from './suite-config.mjs';
+import { canonicalId, legacyFilename } from './test-definitions.mjs';
+import { expandLevels } from './level-selector.mjs';
 import { showHelp, validateArguments, wantsHelp } from './cli-arguments.mjs';
 import { loadPersistedReviews, loadScoringConfig, renderWeightedReport, scoreRun } from './weighted-scoring.mjs';
 import { loadDashboardConfig } from './dashboard-config.mjs';
 import { ensureDashboard } from './dashboard-launcher.mjs';
 import { createLiveProgressWriter } from './live-progress.mjs';
 import { writeJsonAtomically } from './atomic-write.mjs';
-import { executionContractFor, loadExecutionContracts } from './execution-environment.mjs';
+import { executionContractFor, executionTargetId, loadExecutionContracts } from './execution-environment.mjs';
 
 const dir = new URL('../test/', import.meta.url);
 const args = process.argv.slice(2);
@@ -39,7 +41,7 @@ Target options:
 
 Run options:
   --responses DIR        Directory containing saved response text files.
-  --levels LIST          Levels and ranges, for example 1,2,4A,5-8.
+  --levels LIST          Canonical IDs and ranges, for example L1,L2,L10-L13.
   --force                Continue later levels after a model fails.
   --weighted             Add weighted scoring without changing test execution.
   --scoring FILE         Versioned scoring configuration used with --weighted.
@@ -72,10 +74,10 @@ const getOption = name => { const index=args.findIndex(argument=>argument===name
 
 const suite = await loadSuiteConfig();
 const executionConfig = await loadExecutionContracts(getOption('--execution-config'));
-const allFiles = (await readdir(dir)).filter(file => /^level-.*\.md$/i.test(file) && !/(?:-answer|-test)\.md$/i.test(file)).sort((a,b) => a.localeCompare(b, undefined, { numeric:true }));
+const allFiles = suite.manifest;
 const selector = getOption('--levels');
 const selectedLevels = selector ? expandLevels(selector) : null;
-const files = selectedLevels ? allFiles.filter(file => selectedLevels.has(levelOf(file))) : allFiles;
+const files = selectedLevels ? allFiles.filter(file => selectedLevels.has(file)) : allFiles;
 const responseDir = getOption('--responses') ?? (!args[0]?.startsWith('--') ? args[0] : undefined);
 if (getOption('--url') && getOption('--endpoint')) showHelp(HELP, 'Use either --url or --endpoint, not both');
 if (getOption('--endpoint') && getOption('--path')) showHelp(HELP, '--endpoint is complete and cannot be combined with --path');
@@ -100,7 +102,7 @@ const dashboard = await loadDashboardConfig({ url:getOption('--dashboard-url'), 
 const aggregate = {
   runId,
   runDirectory,
-  schemaVersion:'1.2.0',
+  schemaVersion:'1.3.0',
   suiteVersion:suite.suiteVersion,
   generatedAt:new Date().toISOString(),
   startedAt:runStartedAt,
@@ -129,15 +131,19 @@ if (!dashboardDisabled) {
 
 let failed = false;
 let infrastructureInvalid = false;
+let prerequisiteBlocked = false;
+let executionIncomplete = false;
 for (const target of targets) {
   const model = target?.model ?? 'offline';
   console.log(`\nModel: ${model}`);
   const modelDirectory = resolve(runDirectory, safeModelDirectoryName(model));
-  const executionWorkspace = resolve(modelDirectory, 'execution-workspace');
+  const executionWorkspace = resolve(runDirectory, '.workspaces', executionTargetId(runId,target?publicTarget(target):{model}));
   await mkdir(modelDirectory, { recursive:true });
   const modelReport = { model:target?.model ?? null, target:target ? publicTarget(target) : null, status:'running', stoppedAfter:null, activeTest:null, warmup:null, qualificationResults:[], performance:[] };
   aggregate.models.push(modelReport);
   let modelInfrastructureInvalid=false;
+  let modelPrerequisiteBlocked=false;
+  let modelExecutionIncomplete=false;
   const priorResults=new Map();
   await persistAggregate();
   if (target) {
@@ -176,18 +182,18 @@ for (const target of targets) {
   }
 
   for (const file of files) {
-    const responseFile = responseDir && `${responseDir}/${file.replace('.md', '.txt')}`;
+    const responseFile = responseDir && await firstExisting(responseDir, [`${file}.txt`, `${legacyFilename(file)?.replace('.md','.txt')}`]);
     if (responseFile) {
       try { await access(responseFile); }
       catch { console.log(`  SKIP ${file}: missing ${responseFile}`); continue; }
     }
-    console.log(`  Level ${levelOf(file)} — ${file.replace(/\.md$/, '')}`);
-    modelReport.activeTest = { test:file, level:levelOf(file), startedAt:new Date().toISOString() };
+    console.log(`  ${file} — ${suite.definitions.find(item=>item.id===file)?.name ?? file}`);
+    modelReport.activeTest = { test:file, testId:file, level:file, startedAt:new Date().toISOString() };
     await persistAggregate();
-    const command = [fileURLToPath(new URL('./run-test.mjs', import.meta.url)), fileURLToPath(new URL(file, dir))];
+    const command = [fileURLToPath(new URL('./run-test.mjs', import.meta.url)), file];
     command.push(...(responseFile ? ['--response', responseFile] : []));
     if (args.includes('--no-system-prompt')) command.push('--no-system-prompt');
-    const perTestJson = resolve(modelDirectory, `${file.replace('.md', '')}.json`);
+    const perTestJson = resolve(modelDirectory, `${file}.json`);
     command.push('--json', perTestJson);
     if (getOption('--execution-config')) command.push('--execution-config',getOption('--execution-config'));
     if (getOption('--fixture-source-root')) command.push('--fixture-source-root',getOption('--fixture-source-root'));
@@ -201,6 +207,7 @@ for (const target of targets) {
       AGENT_TEST_MODEL:model,
       AGENT_TEST_EXECUTION_WORKSPACE:executionWorkspace,
       ...(priorResultFile ? { AGENT_TEST_PRIOR_RESULT_FILE:priorResultFile } : {}),
+      ...(args.includes('--force')&&args.includes('--weighted') ? { AGENT_TEST_ALLOW_REFERENCE_FALLBACK:'1' } : {}),
       ...(getOption('--fixture-source-root') ? { AGENT_EVAL_FIXTURE_SOURCE_ROOT:getOption('--fixture-source-root') } : {}),
       ...(args.includes('--host-metrics') ? { AGENT_TEST_HOST_METRICS:'1' } : {}),
       ...(getOption('--sample-ms') ? { AGENT_TEST_SAMPLE_MS:getOption('--sample-ms') } : {}),
@@ -208,18 +215,42 @@ for (const target of targets) {
     } : { AGENT_TEST_PROGRESS_FILE:liveProgressPath, AGENT_TEST_RUN_ID:runId, AGENT_TEST_MODEL:model };
     const code = await run(command, '    ', environment);
     const result = await readJson(perTestJson);
+    // Keep a legacy-named sidecar for historical readers; canonical L<n>.json
+    // remains the primary new-run artifact.
+    if (legacyFilename(file) && result) {
+      const legacyBase = legacyFilename(file).replace(/\.md$/i, '');
+      const legacyReport = JSON.parse(JSON.stringify(result));
+      const rawName = result.inference?.artifacts?.rawBackendResponse;
+      if (rawName) {
+        const legacyRaw = `${legacyBase}.inference.raw.txt`;
+        await writeFile(resolve(modelDirectory, legacyRaw), await readFile(resolve(modelDirectory, rawName)));
+        legacyReport.inference.artifacts.rawBackendResponse = legacyRaw;
+      }
+      await writeFile(resolve(modelDirectory, `${legacyBase}.json`), JSON.stringify(legacyReport, null, 2));
+    }
     const outcome=result?.result ?? (code === 0 ? 'pass' : 'fail');
-    const notes=outcome==='invalid_environment' ? (result?.infrastructure?.reasons ?? []).join('; ') : (result?.rubricReviewRequired ? 'RUBRIC REVIEW REQUIRED' : '');
-    modelReport.qualificationResults.push({ test:file, level:levelOf(file), result:outcome, notes, rubricReviewRequired:Boolean(result?.rubricReviewRequired), discrepancies:result?.discrepancies ?? [], performance:outcome==='invalid_environment'?null:(result?.performance ?? null), infrastructure:result?.infrastructure ?? null, executionEvidence:result?.executionEvidence ? { valid:result.executionEvidence.valid,executionVersion:result.executionEvidence.executionVersion } : null, evidence:relativeEvidence(modelDirectory, perTestJson, result) });
+    const nonScoredExecution=['invalid_environment','blocked_by_prerequisite','execution_incomplete'];
+    const notes=nonScoredExecution.includes(outcome) ? (result?.infrastructure?.reasons ?? []).join('; ') : (result?.rubricReviewRequired ? 'RUBRIC REVIEW REQUIRED' : '');
+    modelReport.qualificationResults.push({ test:file, level:levelOf(file), result:outcome, notes, rubricReviewRequired:Boolean(result?.rubricReviewRequired), discrepancies:result?.discrepancies ?? [], performance:nonScoredExecution.includes(outcome)?null:(result?.performance ?? null), infrastructure:result?.infrastructure ?? null, evidenceSource:result?.evidenceSource??result?.executionEvidence?.evidenceSource??null,dependencyFallback:Boolean(result?.dependencyFallback??result?.executionEvidence?.dependencyFallback), executionEvidence:result?.executionEvidence ? { valid:result.executionEvidence.valid,executionVersion:result.executionEvidence.executionVersion,taskState:result.executionEvidence.taskState,acceptance:result.executionEvidence.acceptance,toolCalls:result.executionEvidence.toolCalls,termination:result.executionEvidence.termination??null } : null, evidence:relativeEvidence(modelDirectory, perTestJson, result) });
     priorResults.set(file,perTestJson);
     modelReport.activeTest = null;
-    if (outcome!=='invalid_environment' && result?.performance) modelReport.performance.push({ level:levelOf(file), ...result.performance });
+    if (!nonScoredExecution.includes(outcome) && result?.performance) modelReport.performance.push({ level:levelOf(file), ...result.performance });
     await persistAggregate();
     await rm(liveProgressPath, { force:true });
     if (outcome === 'invalid_environment') {
       infrastructureInvalid=true;
       modelInfrastructureInvalid=true;
       console.error(`  INVALID ENVIRONMENT: ${file} was not scored for ${model}`);
+      continue;
+    }
+    if (outcome === 'blocked_by_prerequisite') {
+      prerequisiteBlocked=true; modelPrerequisiteBlocked=true;
+      console.error(`  BLOCKED BY PREREQUISITE: ${file} was not scored for ${model}`);
+      continue;
+    }
+    if (outcome === 'execution_incomplete') {
+      executionIncomplete=true; modelExecutionIncomplete=true;
+      console.error(`  EXECUTION INCOMPLETE: ${file} ended before a final answer for ${model}`);
       continue;
     }
     if (code === 0) continue;
@@ -233,7 +264,7 @@ for (const target of targets) {
   }
   modelReport.qualificationResults = addSkippedLevels(modelReport.qualificationResults, files);
   modelReport.activeTest = null;
-  if (modelReport.status === 'running') modelReport.status = modelInfrastructureInvalid ? 'incomplete_environment' : 'completed';
+  if (modelReport.status === 'running') modelReport.status = modelExecutionIncomplete?'execution_incomplete':modelPrerequisiteBlocked?'blocked_by_prerequisite':modelInfrastructureInvalid?'incomplete_environment':'completed';
   await persistAggregate();
 }
 
@@ -247,7 +278,7 @@ if (args.includes('--weighted')) {
   await writeFile(resolve(runDirectory, 'weighted-results.json'), JSON.stringify(aggregate.weighted, null, 2));
   await writeFile(resolve(runDirectory, 'weighted-summary.md'), renderWeightedReport(aggregate.weighted, scoring));
 }
-aggregate.status = failed ? 'completed_with_failures' : (infrastructureInvalid ? 'completed_incomplete_environment' : 'completed');
+aggregate.status = failed?'completed_with_failures':executionIncomplete?'completed_execution_incomplete':prerequisiteBlocked?'completed_blocked_by_prerequisite':infrastructureInvalid?'completed_incomplete_environment':'completed';
 aggregate.completedAt = new Date().toISOString();
 await persistAggregate();
 if (jsonExportPath && resolve(jsonExportPath) !== jsonPath) {
@@ -255,7 +286,7 @@ if (jsonExportPath && resolve(jsonExportPath) !== jsonPath) {
   await writeFile(jsonExportPath, JSON.stringify(aggregate, null, 2));
 }
 await run([fileURLToPath(new URL('./finalize-run.mjs', import.meta.url)), jsonPath, '--output', resolve(runDirectory, 'qualification-summary.md'), ...(args.includes('--weighted') ? ['--weighted'] : [])]);
-process.exitCode = failed ? 1 : (infrastructureInvalid ? 2 : 0);
+process.exitCode = failed?1:executionIncomplete?4:prerequisiteBlocked?3:infrastructureInvalid?2:0;
 
 async function resolveTargets() {
   const cliAuthentication = getOption('--auth-env') ? { type:'bearer', env:getOption('--auth-env') } : undefined;
@@ -278,8 +309,8 @@ async function resolveTargets() {
   const models = (getOption('--models') ?? process.env.MODEL ?? 'local-model').split(',').filter(Boolean);
   return models.map(model => createTarget({ ...shared, model, protocol:shared.protocol ?? 'openai-chat' }));
 }
-function levelOf(file) { return file.match(/level-([0-9]+a?)/i)?.[1]?.toUpperCase() ?? file; }
-function expandLevels(value) { const levels=new Set(); for (const part of value.split(',')) { const [start,end]=part.split('-').map(Number); if (Number.isInteger(end)) for (let level=start; level<=end; level++) levels.add(String(level)); else levels.add(part.toUpperCase()); } return levels; }
+function levelOf(file) { return canonicalId(file) ?? file; }
+async function firstExisting(directory, names) { for (const name of names.filter(Boolean)) { const candidate=resolve(directory,name); try { await access(candidate); return candidate; } catch {} } return null; }
 function run(command, indent = '', extraEnvironment = {}) { return new Promise(resolveRun => { const child=spawn(process.execPath, command, { stdio:['inherit','pipe','pipe'], shell:false, env:{ ...process.env, ...extraEnvironment } }); pipeIndented(child.stdout, process.stdout, indent); pipeIndented(child.stderr, process.stderr, indent); child.on('exit', code => resolveRun(code ?? 1)); }); }
 function pipeIndented(source, destination, indent) { let pending=''; source.setEncoding('utf8'); source.on('data', chunk => { pending+=chunk; const lines=pending.split(/\r?\n/); pending=lines.pop() ?? ''; for (const line of lines) destination.write(`${indent}${line}\n`); }); source.on('end', () => { if (pending) destination.write(`${indent}${pending}\n`); }); }
 function safeModelDirectoryName(model) { return model.replace(/[\\/]+/g, '__').replace(/[<>:"|?*\u0000-\u001F]/g, '_').replace(/\s+/g, '-').slice(0,180) || 'unnamed-model'; }

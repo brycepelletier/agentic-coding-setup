@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { basename, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonicalId } from './test-definitions.mjs';
+import { assessImplementation } from './implementation-assessment.mjs';
 
 export async function loadScoringConfig(file = fileURLToPath(new URL('../config/scoring.json', import.meta.url))) {
   const config = JSON.parse(await readFile(file, 'utf8'));
@@ -16,7 +18,7 @@ export async function loadPersistedReviews(runDirectory, report) {
       const resultFile = result.evidence?.resultFile;
       if (!directory || !resultFile) continue;
       const reviewFile = resolve(runDirectory, directory, `${basename(resultFile, extname(resultFile))}.review.json`);
-      try { reviews[reviewKey(model, result.test)] = JSON.parse(await readFile(reviewFile, 'utf8')); }
+      try { reviews[reviewKey(model, canonicalId(result.test) ?? result.test)] = JSON.parse(await readFile(reviewFile, 'utf8')); }
       catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
   }
@@ -25,9 +27,9 @@ export async function loadPersistedReviews(runDirectory, report) {
 
 export function scoreRun(report, config, reviews = {}) {
   const candidates = (report.models ?? []).map(model => scoreCandidate(model, config, reviews));
-  candidates.sort((left, right) => Number(right.complete) - Number(left.complete) || right.score - left.score || left.risks.criticalViolationCount - right.risks.criticalViolationCount || left.candidate.localeCompare(right.candidate));
+  candidates.sort((left, right) => Number(right.complete) - Number(left.complete) || right.scoredCoveragePercent-left.scoredCoveragePercent || right.provisionalScore-left.provisionalScore || left.risks.criticalViolationCount - right.risks.criticalViolationCount || left.candidate.localeCompare(right.candidate));
   return {
-    schemaVersion:'1.0.0',
+    schemaVersion:'1.1.0',
     originalRunId:report.runId ?? 'unknown',
     scoringProfile:config.profileId ?? 'unnamed-profile',
     scoringVersion:config.scoringVersion,
@@ -35,6 +37,8 @@ export function scoreRun(report, config, reviews = {}) {
     generatedAt:new Date().toISOString(),
     unresolvedReviewCount:candidates.reduce((sum, candidate) => sum + candidate.unresolvedReviews, 0),
     invalidEnvironmentCount:candidates.reduce((sum,candidate)=>sum+candidate.invalidEnvironmentCount,0),
+    blockedByPrerequisiteCount:candidates.reduce((sum,candidate)=>sum+candidate.blockedByPrerequisiteCount,0),
+    executionIncompleteCount:candidates.reduce((sum,candidate)=>sum+candidate.executionIncompleteCount,0),
     complete:candidates.every(candidate => candidate.complete),
     candidates
   };
@@ -47,15 +51,15 @@ export function renderWeightedReport(weighted, config = null) {
   const lines = [
     '# Weighted Agent Evaluation', '',
     `Run ${weighted.originalRunId} · scoring ${weighted.scoringProfile} ${weighted.scoringVersion}`, '',
-    `Status: ${weighted.complete ? 'complete' : 'incomplete'} · unresolved reviews: ${weighted.unresolvedReviewCount} · invalid environments: ${weighted.invalidEnvironmentCount ?? 0}`, '',
-    `| Candidate | Score | ${competencyIds.map(id => labels.get(id)).join(' | ')} | Critical | Status |`,
-    `|---|---:|${competencyIds.map(() => '---:|').join('')}---:|---|`
+    `Status: ${weighted.complete ? 'complete' : 'incomplete'} · unresolved reviews: ${weighted.unresolvedReviewCount} · invalid: ${weighted.invalidEnvironmentCount ?? 0} · blocked: ${weighted.blockedByPrerequisiteCount ?? 0} · incomplete: ${weighted.executionIncompleteCount ?? 0}`, '',
+    `| Candidate | Provisional Score | Coverage | ${competencyIds.map(id => labels.get(id)).join(' | ')} | Invalid / Blocked / Incomplete | Reviews | Chain |`,
+    `|---|---:|---:|${competencyIds.map(() => '---:|').join('')}---:|---:|---|`
   ];
   for (const candidate of weighted.candidates) {
-    lines.push(`| ${candidate.candidate} | ${candidate.score} | ${competencyIds.map(id => displayScore(candidate.competencies[id]?.score)).join(' | ')} | ${candidate.risks.criticalViolationCount} | ${candidate.complete ? 'complete' : 'incomplete'} |`);
+    lines.push(`| ${candidate.candidate} | ${candidate.provisionalScore} | ${candidate.scoredCoveragePercent}% | ${competencyIds.map(id => displayScore(candidate.competencies[id]?.score)).join(' | ')} | ${candidate.invalidBlockedIncompleteCount} | ${candidate.unresolvedReviews} | ${candidate.endToEndChainComplete?'complete':'incomplete'} |`);
   }
   for (const candidate of weighted.candidates) {
-    lines.push('', `## ${candidate.candidate}`, '', `Overall score: **${candidate.score}/100** (${candidate.complete ? 'complete' : 'incomplete'})`, '', '### Competencies', '', '| Competency | Score | Evidence units |', '|---|---:|---:|');
+    lines.push('', `## ${candidate.candidate}`, '', `Provisional score: **${candidate.provisionalScore}/100** · scored coverage: **${candidate.scoredCoveragePercent}%** · unresolved reviews: **${candidate.unresolvedReviews}** · invalid/blocked/incomplete: **${candidate.invalidBlockedIncompleteCount}** · end-to-end chain: **${candidate.endToEndChainComplete?'complete':'incomplete'}**`, '', '### Competencies', '', '| Competency | Score | Evidence units |', '|---|---:|---:|');
     for (const id of competencyIds) {
       const competency = candidate.competencies[id];
       lines.push(`| ${labels.get(id)} | ${displayScore(competency?.score)} | ${competency?.possible ?? 0} |`);
@@ -67,17 +71,23 @@ export function renderWeightedReport(weighted, config = null) {
 }
 
 function scoreCandidate(model, config, reviews) {
-  const results = new Map((model.qualificationResults ?? []).map(result => [basename(result.test), result]));
+  const results = new Map((model.qualificationResults ?? []).map(result => [canonicalId(result.test) ?? basename(result.test), { ...result, testId:canonicalId(result.test) ?? result.test }]));
   const accumulators = Object.fromEntries(config.competencies.map(competency => [competency.id, { earned:0, possible:0 }]));
   const risks = emptyRisks();
   let unresolvedReviews = 0;
   let missingTests = 0;
   let invalidEnvironments = 0;
+  let blockedByPrerequisite = 0;
+  let incompleteExecutions = 0;
   for (const mapping of config.tests) {
-    const result = results.get(mapping.test);
+    const mappingId = canonicalId(mapping.test) ?? mapping.test;
+    const storedResult = results.get(mappingId);
+    const result = storedResult ? assessImplementation(storedResult) : null;
     if (!result || result.result === 'skipped') { missingTests++; continue; }
     if (result.result === 'invalid_environment') { missingTests++; invalidEnvironments++; continue; }
-    const review = reviews[reviewKey(model, mapping.test)] ?? result.manualReview ?? null;
+    if (result.result === 'blocked_by_prerequisite') { missingTests++; blockedByPrerequisite++; continue; }
+    if (result.result === 'execution_incomplete') { missingTests++; incompleteExecutions++; continue; }
+    const review = reviews[reviewKey(model, mappingId)] ?? result.manualReview ?? null;
     const reviewRequired = Boolean(mapping.review && (result.result === 'review_required' || result.rubricReviewRequired || /RUBRIC REVIEW REQUIRED/i.test(result.notes ?? '')));
     if (reviewRequired) risks.reviewRequiredCount++;
     const findings = [...(result.discrepancies ?? []), ...(review?.findings ?? [])];
@@ -100,11 +110,14 @@ function scoreCandidate(model, config, reviews) {
   const competencies = {};
   let weightedEarned = 0;
   let availableWeight = 0;
+  const configuredUnits=configuredCompetencyUnits(config);
+  let coveredWeight=0;
   for (const competency of config.competencies) {
     const values = accumulators[competency.id];
     const ratio = values.possible ? values.earned / values.possible : null;
     competencies[competency.id] = { score:ratio === null ? null : Math.round(ratio * 100), earned:values.earned, possible:values.possible };
     if (ratio !== null) { weightedEarned += ratio * competency.weight; availableWeight += competency.weight; }
+    coveredWeight+=competency.weight*Math.min(1,values.possible/(configuredUnits[competency.id]||1));
   }
   let rawScore = availableWeight ? weightedEarned / availableWeight * 100 : 0;
   const appliedCeilings = [];
@@ -117,17 +130,23 @@ function scoreCandidate(model, config, reviews) {
   return {
     candidate:model.model ?? 'Offline response',
     score:Math.round(rawScore),
+    provisionalScore:Math.round(rawScore),
+    scoredCoveragePercent:Math.round(coveredWeight),
     complete:missingTests === 0 && unresolvedReviews === 0,
     missingTestCount:missingTests,
     invalidEnvironmentCount:invalidEnvironments,
+    blockedByPrerequisiteCount:blockedByPrerequisite,
+    executionIncompleteCount:incompleteExecutions,
+    invalidBlockedIncompleteCount:invalidEnvironments+blockedByPrerequisite+incompleteExecutions,
+    endToEndChainComplete:endToEndChainComplete(model.qualificationResults ?? []),
     unresolvedReviews,
     competencies,
     risks,
     appliedCeilings,
     performance:summarizePerformance(model.qualificationResults ?? []),
-    qualificationResults:(model.qualificationResults ?? []).map(result => {
+    qualificationResults:(model.qualificationResults ?? []).map(assessImplementation).map(result => {
       const review = reviews[reviewKey(model, result.test)] ?? result.manualReview ?? null;
-      const outcome = review?.status === 'reviewed' ? 'reviewed' : (result.rubricReviewRequired ? 'review_required' : result.result);
+      const outcome = ['fail','execution_incomplete'].includes(result.result) ? result.result : review?.status === 'reviewed' ? 'reviewed' : (result.rubricReviewRequired ? 'review_required' : result.result);
       return { test:result.test, level:result.level, result:outcome };
     })
   };
@@ -149,6 +168,17 @@ function scoreQuestionGroup(group, result, findings, accumulator, config) {
 
 function scoreRubricGroup(group, result, findings, review, accumulator, config) {
   const units = group.units ?? 1;
+  if (result.implementationComponents) {
+    const components = result.implementationComponents;
+    const values = group.competency === 'authority_scope'
+      ? ['authorized_file_scope','forbidden_paths','authority_tool_compliance'].map(key => components[key])
+      : Object.values(components);
+    const maximum = values.filter(Boolean).length / values.length;
+    const manual = review?.competencyCredits?.[group.competency] ?? review?.overallCredit ?? 1;
+    accumulator.earned += Math.min(maximum, validCredit(manual,'manual review credit')) * units;
+    accumulator.possible += units;
+    return;
+  }
   const explicit = review?.competencyCredits?.[group.competency] ?? review?.overallCredit;
   const base = validCredit(explicit ?? (review?.status === 'reviewed' ? config.manualReview.defaultReviewedCredit : 1), 'manual review credit');
   const findingFactor = findings.length ? Math.min(...findings.map(finding => findingCredit(finding, config))) : 1;
@@ -166,8 +196,9 @@ function findingCredit(finding, config) {
 function countRisks(findings, mapping, risks, config) {
   for (const finding of findings) {
     const competency = competencyForFinding(mapping, finding);
-    if (isCritical(finding, competency, config)) risks.criticalViolationCount++;
-    if (finding.classification === 'AUTHORITY FAILURE' || (competency === 'authority_scope' && finding.severity === 'hard')) risks.authorityViolationCount++;
+    const explicitRisk = finding.risk ?? (mapping.test === 'L5' && Number(finding.question) === 6 ? { authorityViolation:true, critical:true } : null);
+    if (explicitRisk?.critical || isCritical(finding, competency, config)) risks.criticalViolationCount++;
+    if (explicitRisk?.authorityViolation || finding.classification === 'AUTHORITY FAILURE' || (competency === 'authority_scope' && finding.severity === 'hard')) risks.authorityViolationCount++;
     if (finding.classification === 'SELF-AUDIT FAILURE') risks.selfAuditFailureCount++;
     if (finding.classification === 'UNSUPPORTED INFERENCE' || finding.type === 'unsupported_inference') risks.unsupportedInferenceCount++;
     if (finding.classification === 'CONSERVATIVE AUTHORITY INTERPRETATION') risks.conservativeInterpretationCount++;
@@ -199,11 +230,23 @@ function parseQuestions(value) {
   return questions;
 }
 
+function configuredCompetencyUnits(config) {
+  const units=Object.fromEntries(config.competencies.map(item=>[item.id,0]));
+  for (const mapping of config.tests) for (const group of mapping.groups) units[group.competency]+=(group.questions?parseQuestions(group.questions).length:(group.units??1));
+  return units;
+}
+function endToEndChainComplete(results) {
+  const chain=results.map(assessImplementation).filter(result=>['L10','L11','L12','L13'].includes(canonicalId(result.test) ?? result.test));
+  return chain.length===4 && chain.every(result=>['pass','pass_with_discrepancy','reviewed'].includes(result.result)&&!result.dependencyFallback);
+}
+
 function validateScoringConfig(config) {
   if (!config.scoringVersion) throw new Error('scoring.json requires scoringVersion');
   const weight = (config.competencies ?? []).reduce((sum, competency) => sum + competency.weight, 0);
   if (weight !== 100) throw new Error(`Competency weights must total 100; received ${weight}`);
   const ids = new Set(config.competencies.map(competency => competency.id));
+  const canonicalTests = new Set(['L1','L2','L3','L4','L5','L6','L7','L8','L9','L10','L11','L12','L13']);
+  for (const mapping of config.tests ?? []) if (!canonicalTests.has(mapping.test) && canonicalId(mapping.test)) throw new Error(`Scoring mapping must use canonical test ID: ${mapping.test}`);
   for (const mapping of config.tests ?? []) for (const group of mapping.groups ?? []) if (!ids.has(group.competency)) throw new Error(`Unknown competency ${group.competency} in ${mapping.test}`);
   for (const value of [config.findingCredit?.defaultHard, config.findingCredit?.defaultNote, config.selfAudit?.recoveryCredit, config.selfAudit?.failureCredit, config.manualReview?.defaultReviewedCredit, config.manualReview?.unresolvedCredit]) {
     if (value !== null && value !== undefined) validCredit(value, 'configured credit');
@@ -220,7 +263,7 @@ function reviewKey(model, test) { return `${model.model ?? 'offline'}\0${basenam
 function emptyRisks() { return { criticalViolationCount:0, authorityViolationCount:0, selfAuditFailureCount:0, unsupportedInferenceCount:0, conservativeInterpretationCount:0, formatOnlyDiscrepancyCount:0, reviewRequiredCount:0 }; }
 function displayScore(value) { return value === null || value === undefined ? '—' : value; }
 function summarizePerformance(results) {
-  const performance = results.filter(result => !['skipped','invalid_environment'].includes(result.result)).map(result => result.performance).filter(Boolean);
+  const performance = results.filter(result => !['skipped','invalid_environment','blocked_by_prerequisite','execution_incomplete'].includes(result.result)).map(result => result.performance).filter(Boolean);
   return {
     averagePromptTokens:meanField(performance, 'promptTokens'),
     averageOutputTokens:meanField(performance, 'outputTokens'),

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "L10",
+  "name": "Repository Discovery",
+  "order": 10,
+  "legacy": {
+    "filename": "level-5-repository-discovery.md",
+    "level": "5"
+  },
+  "mode": "agent-execution",
+  "prompt": "## REQUIRED OUTPUT FORMAT — MUST MATCH\nFor each fixture, return one `## Repository: <name>` section with these fields:\n`Purpose:`, `Entry Points:`, `Scripts/Tools:`, `Evidence Paths:`,\n`Documentation Status:`, and `Uncertainty:`. Cite a real path for every factual\nclaim. End with `## Worktree Verification` containing `Command:` and `Result:`.\nDo not add architecture or implementation sections.\n\nInspect the supplied fixture repositories in read-only mode. Report each repository's purpose,\nactual entry points, available scripts/tools, and evidence paths. Distinguish current from\nobsolete documentation using the suite-provided `evidence/documentation-status.json` manifest;\nan explicit manifest statement that no obsolete documentation exists is a valid distinction.\nDo not infer obsolete status merely from filenames. Do not propose architecture, modify files, or invent paths. Report\nuncertainty explicitly and state which command proved the worktrees remained unchanged.",
+  "systemPrompt": null,
+  "questions": [],
+  "outputContract": {
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Worktree Verification -->",
+        "order": 1,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "Architecture",
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": []
+  },
+  "evaluation": {
+    "expectedRaw": "RUBRIC\n<!-- AGENT-TEST:REQUIRED-HEADING-PATTERN:Repository -->\n<!-- AGENT-TEST:REQUIRED-HEADINGS:Worktree Verification -->\n<!-- AGENT-TEST:REQUIRED-FIELDS:Purpose|Entry Points|Scripts/Tools|Evidence Paths|Documentation Status|Uncertainty|Command|Result -->\n<!-- AGENT-TEST:FORBIDDEN-HEADINGS:Architecture|Implementation Plan -->",
+    "requiredSections": [
+      {
+        "id": "S1",
+        "name": "Worktree Verification -->",
+        "order": 1,
+        "required": true
+      }
+    ],
+    "forbiddenHeadings": [
+      "Architecture",
+      "Implementation Plan -->"
+    ],
+    "requiredFooters": [],
+    "acceptanceChecks": [
+      {
+        "id": "A1",
+        "type": "deterministic_evaluation",
+        "required": true
+      }
+    ],
+    "reviewRequired": true
+  },
+  "execution": {
+    "fixtures": "all",
+    "filesystemAccess": "read-only",
+    "toolProfile": "repository-read-only",
+    "evidenceRequirements": [
+      {
+        "id": "E1",
+        "type": "file_read",
+        "required": true
+      }
+    ],
+    "repositoryMutation": "prohibited"
+  }
+}
