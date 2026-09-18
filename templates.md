@@ -27,7 +27,7 @@ Replace every angle-bracket placeholder. Do not commit secrets.
       "command": "npx",
       "args": ["--yes", "@brycepelletier/web-research-mcp@0.1.0"]
     },
-    "docker-app": {
+    "docker": {
       "type": "stdio",
       "command": "npx",
       "args": ["--yes", "@brycepelletier/docker-app-mcp@0.1.0"]

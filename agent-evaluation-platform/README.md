@@ -11,6 +11,8 @@ counters, manual reviews, and rescoring.
 See [agent execution contracts](config/EXECUTION.md) for the Levels 5–8
 workspace/tool boundary, pinned fixtures, validity rules, and historical audit.
 
+See [runtime orchestration qualification](config/RUNTIME.md) for the separate executable specialist-chain gate. A policy score does not establish runtime readiness.
+
 ## Qualification levels
 
 | Level | Capability |

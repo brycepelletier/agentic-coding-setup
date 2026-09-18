@@ -61,3 +61,15 @@ MCP facades require exactly one local workspace from `roots/list`; the model can
 ## Security proof
 
 Python launched real Git in the engineering runtime, but Git returned code 128 / “not a git repository.” The executable existed; protected metadata did not. This proves a filesystem boundary rather than model obedience.
+
+## Specialist completion and recovery
+
+Capability -> attempt -> evidence -> recovery or a concrete blocker is the execution contract. The parent owns the requested outcome; specialists own their tools independently. MCP capability-domain denials require delegation to the named owner, not a workaround through Python/shell or broader parent credentials.
+
+For GitHub: Software Engineer sends one compact outcome packet -> GitHub Operator checks local state and App authorization -> optional dry-run -> **actual authorized push** -> ls_remote equals the intended local commit -> evidence returns to Software Engineer -> requested PR/CI steps continue. Authentication-only diagnostics do not authorize a real push, and cannot substitute for one already requested. Commit/PR/workflow preparation likewise is not execution.
+
+For Docker: Software Engineer forwards the observed RUNNER_REQUIRED object -> Docker Operator invokes its own `docker/docker_status` and structured runner tools -> READY `runner_ready_handle` returns -> Software Engineer passes it to GitHub Operator -> GitHub independently verifies runner labels and workflow result. Docker readiness alone does not establish CI success. Do not start/register a live runner without a correlated authorized workflow and repository permission.
+
+Validate agent identity and concrete results. Reject preflight-only completion and refusals based on parent tool absence. Allow at most two focused recovery invocations per failed step with new evidence/corrected inputs, then report attempted tools and unmet prerequisites. On context overflow, send a smaller fresh packet containing only repository, outcome, relevant IDs, operations, constraints, and expected evidence. Forward opaque capabilities unchanged only to their intended consumer. Once the requested outcome is verified, return; do not poll unchanged successful results.
+
+Policy/controlled-workspace qualification and runtime orchestration qualification are separate. Existing L1-L13 scores do not prove specialist execution. The runtime suite runs parent and specialist tool loops against stateful service doubles; its scripted tests qualify the harness, real-model runs qualify only mock-backed orchestration, and neither substitutes for live MCP/service verification. See [runtime qualification](agent-evaluation-platform/config/RUNTIME.md).

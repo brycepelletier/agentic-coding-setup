@@ -4,6 +4,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const commands = new Map([
+  ['runtime', './scripts/run-runtime-qualification.mjs'],
   ['run', './scripts/run-all.mjs'],
   ['single', './scripts/run-test.mjs'],
   ['evaluate', './scripts/evaluate-result.mjs'],
@@ -22,6 +23,7 @@ Usage: test.mjs COMMAND [arguments] [options]
 Single entry point for the Agent Evaluation Platform.
 
 Commands:
+  runtime     Qualify SE/specialist tool chains using stateful service doubles.
   run         Run a batch against live models or saved responses.
   single      Run or evaluate one test file.
   evaluate    Evaluate a response from standard input.

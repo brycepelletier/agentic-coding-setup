@@ -21,7 +21,7 @@
 
 - [ ] Software Engineer appears with only `agent-env/*`, two `web-research` tools, todo, and GitHub/Docker Operator delegation.
 - [ ] GitHub Operator is not user-invocable and exposes only the explicitly listed Git/GitHub tools.
-- [ ] Docker Operator is not user-invocable and exposes only `docker-app/*`.
+- [ ] Docker Operator is not user-invocable and exposes only `docker/*`.
 - [ ] Software Engineer delegates branch/status rather than attempting Git directly.
 - [ ] GitHub Operator refuses source editing and runs its independent repository gate.
 - [ ] The legacy standalone Web Search agent is not active in the current setup.

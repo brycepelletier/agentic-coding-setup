@@ -122,3 +122,21 @@ Restart the MCP server or reload VS Code. Existing stdio processes retain the ol
 - Confirm the exact host path points to a readable regular file.
 - Confirm App installation includes the target repository and required permissions.
 - Never debug by printing the PEM, JWT, installation token, or environment dump.
+
+## Observed operator failures
+
+| Symptom | Cause/check | Recovery |
+|---|---|---|
+| GitHub Operator stops at push_dry_run | Preflight treated as completion | Reinvoke for actual authorized push and matching ls_remote. Authentication tests remain non-mutating. |
+| Docker Operator cites the parent's missing Docker tools | Invalid inference across capability domains | Require its own docker_status attempt; inspect the child's tool inventory. |
+| Docker tools absent despite installed MCP | Server key `docker` did not match agent declaration `docker-app/*` | Use `docker/*` consistently in active definitions and templates; reconnect the MCP/client session after configuration changes. |
+| agent-env cwd missing/absolute | ensure_environment already reports the project root | Use `.` or `scripts`, never absolute paths or a repeated project directory. |
+| MCP -32603 hides command failures | Operational exceptions escaped the handler | agent-env now returns isError plus stable code/message; subprocess failures retain exit_code/stdout/stderr. |
+| verify.py reports pyserial unavailable | System Python lacked PlatformIO dependencies | Default runtime PATH now selects /opt/platformio/bin; rebuild the managed image. Repository Linux venv symlinks to runtime-owned /usr/bin/python3 are supported. |
+| Delegation exceeds model context | Excess history/files/schema context | Fresh compact outcome packet, bounded retry; do not drop required IDs or opaque capabilities. |
+| Model repeats successful tools or omits agent identity | Runtime contract not satisfied | Fail runtime qualification; preserve the trace. Do not infer readiness from policy scores. |
+| GitHub auth fails for one repo | App token creation/repository authorization may be scoped | Inspect safe HTTP/network diagnostic. Do not broaden App access or infer all repositories fail. |
+
+`scripts/sync-agents.ps1 -Mode Check` checks active definition synchronization and configured MCP namespace alignment when the local VS Code MCP configuration exists. `-Mode Install` installs the tracked definitions. The local repaired GitHub MCP is launched from source during development; publishing a package is a separate operation. Existing credential configuration remains internal to the trusted MCP launcher.
+
+Run `node scripts/verify-local-mcp.mjs agent-env <absolute-workspace> --repository-scripts --venv` for the opt-in Environment Controller script-entry checks. It invokes build/upload/verify with `--help`, not a firmware build/upload or hardware verification. A temporary venv is confined to that workspace and removed afterward. A serial/network/hardware conclusion requires an actual repository verification attempt; do not infer it from environment type or from help output. Board hostnames are repository/config derived, never fixed in agent instructions.

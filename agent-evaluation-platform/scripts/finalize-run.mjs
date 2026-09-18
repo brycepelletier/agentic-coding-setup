@@ -31,6 +31,8 @@ const lines = [
   '',
   `Run ${report.runId ?? 'unknown'} · ${report.generatedAt ?? ''}`,
   '',
+  'Policy and controlled-workspace qualification only. Runtime orchestration is not qualified by these scores; run the separate runtime suite.',
+  '',
   '## Qualification Summary',
   '',
   '| Candidate | Highest Test Passed | Avg Prompt Tokens | Avg Output Tokens | Avg Total Tokens | Avg tok/s | Avg Visible TTFT | Status / Failure |',

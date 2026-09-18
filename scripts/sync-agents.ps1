@@ -48,4 +48,17 @@ if ($different.Count -gt 0) {
     throw "Agent definitions are not synchronized: $($different -join ', ')"
 }
 
+$mcpConfiguration = Join-Path $env:APPDATA 'Code\User\mcp.json'
+if (Test-Path -LiteralPath $mcpConfiguration) {
+    $servers = (Get-Content -LiteralPath $mcpConfiguration -Raw | ConvertFrom-Json).servers.PSObject.Properties.Name
+    foreach ($file in $files | Where-Object { $_ -like '*.agent.md' }) {
+        $definition = Get-Content -LiteralPath (Join-Path $trackedDirectory $file) -Raw
+        $frontmatter = [regex]::Match($definition, '(?s)^---\r?\n(.*?)\r?\n---').Groups[1].Value
+        foreach ($match in [regex]::Matches($frontmatter, '(?m)^\s+-\s+[''" ]*([a-z][a-z0-9-]*)/')) {
+            if ($match.Groups[1].Value -notin $servers) {
+                throw "Agent $file references an unregistered MCP namespace: $($match.Groups[1].Value)"
+            }
+        }
+    }
+}
 Write-Output "Agent definitions are synchronized ($($files.Count) files)."
